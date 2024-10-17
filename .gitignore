@@ -6,6 +6,27 @@ __pycache__/
 # C extensions
 *.so
 
+#Image and video files
+/images/
+/videos/
+*.jpg
+*.png
+*.mp4
+
+#TensorFlow, PyTorch models
+*.h5
+*.ckpt
+*.pt
+*.onnx
+
+#Database backup files
+*.sql
+*.bak
+*.db
+
+#Temporary SQL files
+*.tmp
+
 # Distribution / packaging
 .Python
 build/
@@ -129,6 +150,11 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+#Environment DB
+config.py
+settings.py
+database.ini
 
 # Spyder project settings
 .spyderproject
