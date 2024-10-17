@@ -1,0 +1,102 @@
+face_recognition_project/              # Thư mục gốc của dự án
+│
+├── data/                               # Thư mục chứa dữ liệu
+│   ├── raw/                            # Dữ liệu thô ban đầu
+│   │   ├── train/                      # Dữ liệu huấn luyện (chứa các thư mục con cho từng lớp danh tính)
+│   │   │   ├── celebrity_1/            # Hình ảnh của celebrity 1
+│   │   │   │   ├── img1.jpg
+│   │   │   │   └── img2.jpg
+│   │   │   └── celebrity_2/            # Hình ảnh của celebrity 2
+│   │   │       ├── img3.jpg
+│   │   │       └── img4.jpg
+│   │   └── val/                        # Dữ liệu kiểm thử
+│   │       ├── celebrity_1/            # Hình ảnh của celebrity 1 cho kiểm thử
+│   │       │   ├── img5.jpg
+│   │       │   └── img_new.jpg
+│   │       └── celebrity_2/            # Hình ảnh của celebrity 2 cho kiểm thử
+│   │           └── img6.jpg
+│   └── processed/                      # Dữ liệu đã qua xử lý (các file .npz)
+│       ├── face_dataset.npz            # Dữ liệu khuôn mặt đã trích xuất
+│       └── face_embedding.npz          # Embedding đã tính toán từ FaceNet
+│
+├── models/                             # Thư mục chứa các mô hình
+│   └── facenet_keras.h5                # Mô hình FaceNet đã huấn luyện trước
+│
+├── notebooks/                          # Thư mục chứa các notebook cho quá trình thử nghiệm
+│   └── exploratory_analysis.ipynb      # Notebook cho phân tích và thử nghiệm
+│
+├── src/                                # Thư mục chứa mã nguồn (code)
+│   ├── extract_faces_dataset.py         # File trích xuất khuôn mặt
+│   ├── predict_face_embeddings.py       # File tính toán embedding
+│   ├── random_face_identity_classification.py # File huấn luyện và kiểm thử SVM
+│   └── capture_and_save_face.py         # File để chụp và lưu hình ảnh
+│
+├── db/                                 # Thư mục chứa mã nguồn cho cơ sở dữ liệu
+│   └── database.py                      # Tương tác với cơ sở dữ liệu MySQL
+│
+├── results/                            # Kết quả mô hình, báo cáo, và đồ thị
+│   ├── predictions/                    # Kết quả dự đoán từ mô hình
+│   └── evaluation/                     # Kết quả đánh giá mô hình
+│
+├── requirements.txt                    # Danh sách các thư viện cần thiết
+└── README.md                           # Hướng dẫn sử dụng dự án
+
+
+
+
+Xử lý dữ liệu đầu vào và lưu trữ:
+Sau khi lấy vào các hình ảnh từ thư mục raw/, chúng sẽ được xử lý và lưu trữ thành các file .npz (file nén NumPy) để dễ sử dụng trong quá trình huấn luyện và kiểm thử.
+
+Bước 1: Trích xuất khuôn mặt từ ảnh
+File xử lý: extract_faces_dataset.py
+Mục đích: File này đọc các ảnh từ thư mục data/raw/train/ và data/raw/val/, sau đó sử dụng thư viện MTCNN để phát hiện và cắt các khuôn mặt từ ảnh.
+Kết quả: Sau khi khuôn mặt được trích xuất, chúng được lưu vào file .npz tại đường dẫn data/processed/face_dataset.npz.
+
+Bước 2: Tính toán embedding của khuôn mặt
+File xử lý: predict_face_embeddings.py
+Mục đích: File này đọc dữ liệu khuôn mặt đã trích xuất từ file .npz (từ bước trước), sau đó sử dụng mô hình FaceNet để tính toán embedding (vector đặc trưng) cho mỗi khuôn mặt.
+Kết quả: Embedding của khuôn mặt được lưu vào một file .npz khác.
+
+Dữ liệu đầu vào: Là các hình ảnh khuôn mặt được lưu trong thư mục data/raw/.
+File xử lý dữ liệu:
+extract_faces_dataset.py dùng để trích xuất khuôn mặt từ ảnh.
+predict_face_embeddings.py dùng để tính toán embedding của khuôn mặt.
+File đầu ra:
+data/processed/face_dataset.npz: Lưu các khuôn mặt đã trích xuất.
+data/processed/face_embedding.npz: Lưu các vector embedding sau khi tính toán.
+Dữ liệu đầu vào (hình ảnh) được xử lý, trích xuất khuôn mặt và chuyển thành vector đặc trưng (embedding), rồi lưu trữ vào các file .npz để dễ dàng sử dụng trong quá trình huấn luyện mô hình phân loại (SVM).
+
+
+Bước 3: Phân loại danh tính khuôn mặt bằng mô hình SVM
+File xử lí: andom_face_identity_classification.py
+Mục đích: File này đọc dữ liệu đã xử lý từ hai file .npz và sử dụng mô hình SVM để huấn luyện, đánh giá, và thực hiện phân loại danh tính dựa trên face embeddings.
+Đọc dữ liệu đầu vào
+
+Tải dữ liệu từ hai file .npz:
+face_dataset.npz: Chứa ảnh gốc của các khuôn mặt.
+face_embedding.npz: Chứa embedding và nhãn danh tính.
+Chuẩn hóa và mã hóa dữ liệu
+
+Chuẩn hóa embedding bằng Normalizer (L2).
+Mã hóa nhãn danh tính bằng LabelEncoder để chuyển tên thành số nguyên.
+Huấn luyện mô hình SVM
+
+Mô hình SVM với kernel tuyến tính được huấn luyện trên tập huấn luyện (trainX và trainy).
+Đánh giá mô hình
+
+Tính độ chính xác trên tập huấn luyện và kiểm thử:
+In ra Accuracy trên train và test.
+Dự đoán ngẫu nhiên một khuôn mặt
+
+Chọn ngẫu nhiên một ảnh từ tập kiểm thử.
+Dự đoán danh tính và xác suất tương ứng bằng mô hình SVM.
+Hiển thị kết quả
+
+In ra ảnh khuôn mặt và dự đoán danh tính cùng xác suất dự đoán.
+
+
+
+
+
+
+

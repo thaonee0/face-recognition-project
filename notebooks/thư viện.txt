@@ -1,0 +1,8 @@
+#các thư viện sẽ cài trong dự án
+
+numpy
+tensorflow
+scikit-learn
+matplotlib
+mtcnn
+Pillow
