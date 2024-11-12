@@ -1,6 +1,6 @@
 import numpy as np
 from keras.models import load_model
-import os
+import os# cmm
 
 def load_data(face_dataset_path, face_embedding_path):
     # Tải dữ liệu khuôn mặt và embedding từ các tệp npz
