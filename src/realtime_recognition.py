@@ -109,6 +109,6 @@ class RealtimeRecognition:
         self.cursor.close()  # Đóng con trỏ
         self.db_connection.close()  # Đóng kết nối cơ sở dữ liệu
 
-if __name__ == "__main__":
+"""if __name__ == "__main__":
     recognizer = RealtimeRecognition()
-    recognizer.run()
+    recognizer.run()"""
