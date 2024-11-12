@@ -1,7 +1,7 @@
 import numpy as np
 
 # Nạp tệp face_dataset.npz
-data = np.load('D:\\FACENET\\face_recognition_project\\data\\processed\\face_dataset.npz')
+data = np.load('D:\uni\face_recognition_project\data\processed\face_dataset.npz')
 
 # Kiểm tra các mảng trong tệp
 for key in data:

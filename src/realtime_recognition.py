@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import pickle
 import mysql.connector
-from keras.models import load_model
 from resnet50v2_model import CustomResNet50V2  # Nhập mô hình từ tệp resnet50v2_model.py
 
 class RealtimeRecognition:
@@ -11,11 +10,11 @@ class RealtimeRecognition:
         self.resnet_model = CustomResNet50V2(weights='imagenet')
 
         # Tải mô hình SVM
-        with open('D:\\FACENET\\face_recognition_project\\models\\svm_model.pkl', 'rb') as f:
+        with open('D:\uni\face_recognition_project\models\svm_model.pkl', 'rb') as f:
             self.svm_model = pickle.load(f)
 
         # Tải label encoder
-        with open('D:\\FACENET\\face_recognition_project\\models\\label_encoder.pkl', 'rb') as f:
+        with open('D:\uni\face_recognition_project\models\label_encoder.pkl', 'rb') as f:
             self.label_encoder = pickle.load(f)
 
         # Kết nối đến cơ sở dữ liệu
