@@ -1,33 +1,13 @@
 import cv2
 import numpy as np
-import pickle
-import mysql.connector
 from keras.models import load_model
-from resnet50v2_model import CustomResNet50V2  # Nhập mô hình từ tệp resnet50v2_model.py
 
 class RealtimeRecognition:
     def __init__(self):
-        # Tải mô hình ResNet50V2
-        self.resnet_model = CustomResNet50V2(weights='imagenet')
+        # Tải mô hình FaceNet
+        self.facenet_model = load_model('D:\\FACENET\\face_recognition_project\\models\\facenet_keras.h5')
 
-        # Tải mô hình SVM
-        with open('D:\\FACENET\\face_recognition_project\\models\\svm_model.pkl', 'rb') as f:
-            self.svm_model = pickle.load(f)
-
-        # Tải label encoder
-        with open('D:\\FACENET\\face_recognition_project\\models\\label_encoder.pkl', 'rb') as f:
-            self.label_encoder = pickle.load(f)
-
-        # Kết nối đến cơ sở dữ liệu
-        self.db_connection = mysql.connector.connect(
-            host="localhost",
-            user="root",  # Thay đổi username nếu cần
-            password="",  # Thay đổi password nếu cần
-            database="diem_danh"
-        )
-        self.cursor = self.db_connection.cursor()
-
-        print("Models and database connected successfully.")
+        print("Model loaded successfully.")
 
     def process_frame(self, frame):
         # Tiền xử lý khung hình
@@ -35,8 +15,7 @@ class RealtimeRecognition:
         if face_position is not None:
             (face, (x, y, w, h)) = face_position
             embedding = self.get_face_embedding(face)
-            name, probability = self.recognize_face(embedding)
-            self.display_recognition(frame, name, probability, (x, y, w, h))
+            self.display_recognition(frame, embedding, (x, y, w, h))
         return frame
 
     def detect_face(self, frame):
@@ -53,40 +32,21 @@ class RealtimeRecognition:
         return None
 
     def get_face_embedding(self, face):
-        # Tiền xử lý khuôn mặt và lấy đặc trưng từ mô hình ResNet50V2
-        face = cv2.resize(face, (224, 224))  # Kích thước phù hợp với ResNet50V2
+        # Tiền xử lý khuôn mặt và lấy embedding từ mô hình FaceNet
+        face = cv2.resize(face, (160, 160))  # Kích thước phù hợp với FaceNet
         face = np.expand_dims(face, axis=0)  # Thêm batch dimension
         face = face / 255.0  # Chuẩn hóa giá trị pixel
-        embedding = self.resnet_model.predict(face)
-
-        # Giảm số lượng đặc trưng của embedding
-        if embedding.shape[1] > 50:
-            embedding = embedding[:, :50]  # Giữ lại 20 đặc trưng đầu tiên
+        embedding = self.facenet_model.predict(face)
 
         return embedding
 
-    def recognize_face(self, embedding):
-        # Dự đoán bằng mô hình SVM
-        prediction = self.svm_model.predict(embedding)
-        probability = self.svm_model.predict_proba(embedding)
-        # Lấy tên từ dự đoán
-        if len(prediction) > 0:
-            name = self.label_encoder.inverse_transform([prediction[0]])[0]  # Giá trị dự đoán là nhãn
-        else:
-            name = "Unknown"  # Không có dự đoán
-
-        # Lấy xác suất cao nhất
-        prob = probability[0].max() if len(probability) > 0 else 0.0
-
-        return name, prob
-
-    def display_recognition(self, frame, name, probability, face_position):
-        # Hiển thị ô vuông xanh quanh khuôn mặt và tên cũng như xác suất trên khung hình
+    def display_recognition(self, frame, embedding, face_position):
+        # Hiển thị ô vuông xanh quanh khuôn mặt trên khung hình
         (x, y, w, h) = face_position
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Vẽ ô vuông xanh
 
-        # Hiển thị tên và xác suất trên khung hình
-        text = f"{name} ({probability:.2f})"
+        # Hiển thị embedding trên khung hình
+        text = f"Embedding: {embedding.flatten()[:5]}"  # Hiển thị một phần embedding (ví dụ 5 giá trị đầu tiên)
         cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
     def run(self):
@@ -106,8 +66,6 @@ class RealtimeRecognition:
 
         cap.release()
         cv2.destroyAllWindows()
-        self.cursor.close()  # Đóng con trỏ
-        self.db_connection.close()  # Đóng kết nối cơ sở dữ liệu
 
 if __name__ == "__main__":
     recognizer = RealtimeRecognition()
