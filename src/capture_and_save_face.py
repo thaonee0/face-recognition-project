@@ -1,56 +1,33 @@
 import cv2
 import os
+from tkinter import messagebox
 
-# Danh sách các celebrity hợp lệ
-valid_celebrities = ['celebrity_1', 'celebrity_2']  # Thay đổi theo danh sách thật của bạn
-
-def capture_and_save_face(name, save_dir='data/raw/val/'):
-    # Kiểm tra xem tên celebrity có hợp lệ không
-    if name not in valid_celebrities:
-        print("Tên celebrity không hợp lệ! Vui lòng nhập lại.")
-        return
-
-    # Tạo đường dẫn lưu hình ảnh
-    save_path = os.path.join(save_dir, name)
-
-    # Kiểm tra xem thư mục có tồn tại không, nếu không thì tạo
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-
-    # Khởi động webcam
-    cap = cv2.VideoCapture(0)
-
-    # Kiểm tra xem webcam có mở thành công không
-    if not cap.isOpened():
-        print("Error: Could not open webcam.")
-        return
-
-    print("Chụp hình, nhấn 'c' để lưu, nhấn 'q' để thoát.")
+def capture_and_save_face(name, camera_control_callback):
+    train_dir = f'D:\\FACENET\\face_recognition_project\\data\\raw\\train\\{name}'
+    val_dir = f'D:\\FACENET\\face_recognition_project\\data\\raw\\val\\{name}'
     
-    while True:
-        ret, frame = cap.read()  # Đọc khung hình từ webcam
+    os.makedirs(train_dir, exist_ok=True)
+    os.makedirs(val_dir, exist_ok=True)
+
+    cap = cv2.VideoCapture(0)  # Mở camera
+    count = 0
+
+    while count < 50:  # Chụp 50 hình ảnh
+        ret, frame = cap.read()
         if not ret:
-            print("Error: Could not read frame.")
+            messagebox.showerror("Lỗi", "Không thể đọc từ camera.")
             break
 
-        # Hiển thị hình ảnh
-        cv2.imshow('Capture Face', frame)
+        # Lưu hình ảnh vào thư mục train và val
+        img_path_train = os.path.join(train_dir, f"{name}_{count + 1}.jpg")
+        img_path_val = os.path.join(val_dir, f"{name}_{count + 1}.jpg")
+        
+        cv2.imwrite(img_path_train, frame)  # Lưu hình ảnh vào train
+        cv2.imwrite(img_path_val, frame)  # Lưu hình ảnh vào val
+        print(f"Hình ảnh đã được lưu: {img_path_train} và {img_path_val}")
 
-        # Nhấn 'c' để chụp và lưu hình ảnh, nhấn 'q' để thoát
-        key = cv2.waitKey(1)
-        if key == ord('c'):
-            # Tạo tên file hình ảnh
-            file_name = f"{name}.jpg"
-            # Lưu hình ảnh
-            cv2.imwrite(os.path.join(save_path, file_name), frame)
-            print(f"Hình ảnh đã được lưu: {file_name}")
-        elif key == ord('q'):
-            break
+        count += 1
 
-    # Giải phóng webcam và đóng cửa sổ
-    cap.release()
-    cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    user_name = input("Nhập tên celebrity để lưu hình ảnh: ")
-    capture_and_save_face(user_name)
+    cap.release()  # Giải phóng camera
+    camera_control_callback()  # Gọi hàm tắt camera
+    messagebox.showinfo("Thành công", "Đã chụp và lưu 50 hình ảnh thành công.")

@@ -7,7 +7,7 @@ import cv2  # Thêm import OpenCV
 # Thêm thư mục gốc vào đường dẫn tìm kiếm
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from models.resnet50v2_model import ResNet50V2  # Import mô hình từ file resnet50v2_model.py
+from resnet50v2_model import ResNet50V2  # Import mô hình từ file resnet50v2_model.py
 
 # Đường dẫn đến file dữ liệu khuôn mặt đã trích xuất
 face_dataset_path = r'D:\FACENET\face_recognition_project\data\processed\face_dataset.npz'
@@ -20,7 +20,7 @@ def generate_embeddings(resnet_model, dataset):
     embeddings = []
     for face in dataset:
         # Thay đổi kích thước ảnh về 224x224 trước khi dự đoán
-        face_resized = cv2.resize(face, (224, 224))
+        face_resized = cv2.resize(face, (224, 224 , 3))
         embeddings.append(resnet_model.predict(np.expand_dims(face_resized, axis=0))[0])
     return np.asarray(embeddings)
 
