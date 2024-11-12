@@ -1,9 +1,5 @@
 import numpy as np
 from keras.models import load_model
-from sklearn.svm import SVC
-from sklearn.preprocessing import LabelEncoder
-from sklearn.pipeline import make_pipeline
-import pickle
 import os
 
 def load_data(face_dataset_path, face_embedding_path):
@@ -13,18 +9,12 @@ def load_data(face_dataset_path, face_embedding_path):
 
     return data['arr_0'], embeddings['arr_0']  # Giả sử dữ liệu và embeddings nằm trong arr_0
 
-def train_svm(embeddings, labels):
-    # Huấn luyện mô hình SVM với các embedding và nhãn
-    svm_model = make_pipeline(LabelEncoder(), SVC(kernel='linear', probability=True))
-    svm_model.fit(embeddings, labels)
-
-    return svm_model
-
-def save_model(model, model_path):
-    # Lưu mô hình đã huấn luyện
-    with open(model_path, 'wb') as f:
-        pickle.dump(model, f)
-    print(f"Model saved to {model_path}")
+def save_embeddings(embeddings, labels, embedding_path, label_path):
+    # Lưu embeddings và nhãn vào các tệp .npz
+    np.save(embedding_path, embeddings)
+    np.save(label_path, labels)
+    print(f"Embeddings saved to {embedding_path}")
+    print(f"Labels saved to {label_path}")
 
 def main():
     # Đường dẫn đến các tệp dữ liệu của bạn
@@ -38,11 +28,8 @@ def main():
     # Lưu ý: labels cần phải khớp với mỗi khuôn mặt trong dataset của bạn.
     labels = np.array([f"Person_{i}" for i in range(len(faces))])
 
-    # Huấn luyện mô hình SVM để nhận diện khuôn mặt
-    svm_model = train_svm(embeddings, labels)
-
-    # Lưu mô hình đã huấn luyện
-    save_model(svm_model, 'D:\\FACENET\\face_recognition_project\\models\\svm_model.pkl')
+    # Lưu embeddings và nhãn vào tệp .npz
+    save_embeddings(embeddings, labels, 'D:\\FACENET\\face_recognition_project\\data\\saved_embeddings.npy', 'D:\\FACENET\\face_recognition_project\\data\\saved_labels.npy')
 
 if __name__ == '__main__':
     main()
