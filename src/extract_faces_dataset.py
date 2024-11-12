@@ -48,7 +48,7 @@ def process_faces(input_folder, output_file):
 
 if __name__ == '__main__':
     # Gán trực tiếp đường dẫn đến thư mục chứa dữ liệu ảnh và file nén đầu ra
-    input_folder = r'D:\uni\face_recognition_project\data\raw\val'
-    output_file = r'D:\uni\face_recognition_project\data\processed\face_dataset.npz'
+    input_folder = r'D:\\uni\\face_recognition_project\\data\\raw\\val'
+    output_file = r'D:\\uni\\face_recognition_project\\data\\processed\\face_dataset.npz'
     
     process_faces(input_folder, output_file)

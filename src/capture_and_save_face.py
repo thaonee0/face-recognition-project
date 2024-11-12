@@ -3,8 +3,8 @@ import os
 from tkinter import messagebox
 
 def capture_and_save_face(name, camera_control_callback):
-    train_dir = f'D:\uni\face-recognition-project\data\raw\\train\\{name}'
-    val_dir = f'D:\uni\face-recognition-project\data\raw\\val\\{name}'
+    train_dir = f'D:\\uni\\face-recognition-project\\data\\raw\\train\\{name}'
+    val_dir = f'D:\\uni\\face-recognition-project\\data\\raw\\val\\{name}'
     
     os.makedirs(train_dir, exist_ok=True)
     os.makedirs(val_dir, exist_ok=True)

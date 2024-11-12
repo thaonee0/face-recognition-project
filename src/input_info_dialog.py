@@ -38,7 +38,7 @@ class InputInfoDialog:
         if mssv and name and class_name and faculty:
             folder_name = f"{name}-{mssv}"
             # Tạo đường dẫn ảnh đại diện
-            avatar_path = f"D:\uni\face_recognition_project\data\raw\train\{folder_name}\{folder_name}_1.jpg"
+            avatar_path = f"D:\\uni\\face_recognition_project\\data\\raw\\train\\{folder_name}\\{folder_name}_1.jpg"
             
             # Lưu vào database
             db = DatabaseHandler()

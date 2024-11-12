@@ -10,10 +10,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from resnet50v2_model import ResNet50V2  # Import mô hình từ file resnet50v2_model.py
 
 # Đường dẫn đến file dữ liệu khuôn mặt đã trích xuất
-face_dataset_path = r'D:\uni\face_recognition_project\data\processed\face_dataset.npz'
+face_dataset_path = r'D:\\uni\\face_recognition_project\\data\\processed\\face_dataset.npz'
 
 # Đường dẫn đến file lưu embeddings
-face_embedding_path = r'D:\uni\face_recognition_project\data\processed\face_embedding.npz'
+face_embedding_path = r'D:\\uni\\face_recognition_project\\data\\processed\\face_embedding.npz'
 
 # Tạo embeddings cho ảnh
 def generate_embeddings(resnet_model, dataset):

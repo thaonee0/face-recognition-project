@@ -1,7 +1,7 @@
 import numpy as np
 
 # Tải tệp NPZ
-data = np.load('D:\uni\face_recognition_project\data\processed\face_embedding.npz')
+data = np.load('D:\\uni\\face_recognition_project\\data\\processed\\face_embedding.npz')
 
 # Kiểm tra các khóa trong tệp NPZ
 print("Các khóa có trong tệp NPZ:", data.keys())

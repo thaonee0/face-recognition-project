@@ -10,11 +10,11 @@ class RealtimeRecognition:
         self.resnet_model = CustomResNet50V2(weights='imagenet')
 
         # Tải mô hình SVM
-        with open('D:\uni\face_recognition_project\models\svm_model.pkl', 'rb') as f:
+        with open('D:\\uni\\face_recognition_project\\models\\svm_model.pkl', 'rb') as f:
             self.svm_model = pickle.load(f)
 
         # Tải label encoder
-        with open('D:\uni\face_recognition_project\models\label_encoder.pkl', 'rb') as f:
+        with open('D:\\uni\\face_recognition_project\\models\\label_encoder.pkl', 'rb') as f:
             self.label_encoder = pickle.load(f)
 
         # Kết nối đến cơ sở dữ liệu
