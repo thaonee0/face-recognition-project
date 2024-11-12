@@ -4,7 +4,10 @@ import cv2
 from PIL import Image, ImageTk
 import os
 import sys
+import io
 import subprocess
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Thêm đường dẫn gốc của project vào PYTHONPATH
 current_dir = os.path.dirname(os.path.abspath(__file__))
