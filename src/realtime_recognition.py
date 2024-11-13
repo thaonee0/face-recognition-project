@@ -1,136 +1,58 @@
-import cv2
 import numpy as np
-import tensorflow as tf
-from mtcnn.mtcnn import MTCNN
-import os
+import cv2
+from tensorflow.keras.models import load_model
+from utils import preprocess_face, get_embedding
+from mtcnn import MTCNN
 
-class RealtimeRecognition:
-    def __init__(self, model_dir):
-        # Paths for the model
-        self.model_path = os.path.join(model_dir, 'face_recognition_model.h5')
-        
-        # Load model
-        self.model = tf.keras.models.load_model(self.model_path)
-        
-        # Initialize MTCNN detector
-        self.detector = MTCNN()
+class RealTimeRecognizer:
+    def __init__(self, facenet_model_path, classifier_model_path, label_names_path):
+        # Tải mô hình FaceNet và bộ phân loại
+        self.facenet = load_model(facenet_model_path)
+        self.classifier = load_model(classifier_model_path)
+        self.label_names = np.load(label_names_path)
+        self.detector = MTCNN()  # Sử dụng MTCNN để phát hiện khuôn mặt
 
-        # Create labels based on subdirectories in dataset folder (using folder names as labels)
-        self.class_names = sorted([name for name in os.listdir(model_dir) if os.path.isdir(os.path.join(model_dir, name))])
-        
-        print("Model and dependencies loaded successfully.")
+    def recognize(self):
+        cap = cv2.VideoCapture(0)  # Mở camera
 
-    def preprocess_face(self, face_img):
-        """Preprocess the face image for prediction"""
-        # Resize to 160x160 (FaceNet requirement)
-        face_img = cv2.resize(face_img, (160, 160))
-        
-        # Convert BGR to RGB
-        face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
-        
-        # Normalize: Standardization (zero mean, unit variance)
-        face_img = face_img.astype('float32')
-        mean, std = face_img.mean(), face_img.std()
-        face_img = (face_img - mean) / std
-        
-        # L2 Normalization
-        norm = np.sqrt(np.sum(np.square(face_img)))
-        face_img = face_img / norm
-        
-        return face_img
-
-    def detect_face(self, frame):
-        """Detect faces in the frame"""
-        # Convert frame to RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # Detect faces
-        results = self.detector.detect_faces(rgb_frame)
-        
-        detected_faces = []
-        for result in results:
-            x, y, w, h = result['box']
-            confidence = result['confidence']
-            
-            # Only use faces with high confidence
-            if confidence > 0.95:
-                x, y = max(0, x), max(0, y)  # Ensure coordinates are not negative
-                face = frame[y:y+h, x:x+w]  # Crop the face
-                
-                detected_faces.append((face, (x, y, w, h)))
-        
-        return detected_faces
-
-    def predict_face(self, face):
-        """Recognize the face"""
-        # Preprocess
-        processed_face = self.preprocess_face(face)
-        
-        # Generate embedding using FaceNet
-        embedding = np.expand_dims(processed_face, axis=0)
-        
-        # Predict class
-        predictions = self.model.predict(embedding)
-        best_idx = np.argmax(predictions[0])
-        confidence = predictions[0][best_idx]
-        
-        if confidence > 0.7:  # Confidence threshold
-            return self.class_names[best_idx], confidence
-        else:
-            return "Unknown", confidence
-
-    def draw_detection(self, frame, face_pos, name, confidence):
-        """Draw recognition result on the frame"""
-        x, y, w, h = face_pos
-        
-        # Draw face bounding box
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        
-        # Label with name and confidence
-        label = f"{name} ({confidence * 100:.1f}%)"
-        cv2.putText(frame, label, (x, y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
-    def run(self):
-        """Run real-time face recognition"""
-        cap = cv2.VideoCapture(0)  # Open webcam
-        
-        if not cap.isOpened():
-            print("Error: Could not open webcam.")
-            return
-        
-        while True:
-            ret, frame = cap.read()
+        while cap.isOpened():
+            ret, frame = cap.read()  # Đọc khung hình từ camera
             if not ret:
-                print("Failed to capture frame")
                 break
-            
-            # Detect faces in the frame
-            detected_faces = self.detect_face(frame)
-            
-            if detected_faces:
-                for face, face_pos in detected_faces:
-                    # Recognize face
-                    name, confidence = self.predict_face(face)
-                    
-                    # Draw results on the frame
-                    self.draw_detection(frame, face_pos, name, confidence)
-            
-            else:
-                print("No face detected in the frame.")
-            
-            # Show frame with recognition results
-            cv2.imshow("Realtime Face Recognition", frame)
-            
-            # Exit on pressing 'q'
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        
-        cap.release()
-        cv2.destroyAllWindows()
 
-# Run recognition
+            results = self.detector.detect_faces(frame)  # Phát hiện khuôn mặt trong khung hình
+            for result in results:
+                x, y, w, h = result['box']
+                face = frame[y:y + h, x:x + w]  # Cắt khuôn mặt ra khỏi khung hình
+
+                # Tiền xử lý khuôn mặt
+                face = preprocess_face(face)
+                if face is not None:
+                    # Trích xuất embedding từ khuôn mặt
+                    embedding = get_embedding(self.facenet, face)
+                    # Dự đoán lớp của khuôn mặt
+                    prediction = self.classifier.predict(np.expand_dims(embedding, axis=0))
+                    label_index = np.argmax(prediction)  # Lấy chỉ số của lớp dự đoán
+                    label_name = self.label_names[label_index]  # Lấy tên người dự đoán
+
+                    # Vẽ hình chữ nhật quanh khuôn mặt và hiển thị tên
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.putText(frame, label_name, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+
+            # Hiển thị video nhận diện
+            cv2.imshow('Real-time Face Recognition', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):  # Thoát khi nhấn 'q'
+                break
+
+        cap.release()  # Giải phóng tài nguyên camera
+        cv2.destroyAllWindows()  # Đóng tất cả cửa sổ OpenCV
+
 if __name__ == "__main__":
-    model_dir = r'D:\FACENET\face-recognition-project\models\trained'  # Path to directory containing your trained model and dataset subfolders
-    recognition_system = RealtimeRecognition(model_dir)
-    recognition_system.run()
+    # Đường dẫn đến các mô hình đã huấn luyện
+    facenet_model_path = r'D:\FACENET\face-recognition-project\models\facenet_keras.h5'
+    classifier_model_path = 'face_recognition_classifier.h5'
+    label_names_path = 'label_names.npy'  # Tên của file chứa nhãn
+
+    # Khởi tạo và chạy nhận dạng
+    recognizer = RealTimeRecognizer(facenet_model_path, classifier_model_path, label_names_path)
+    recognizer.recognize()  # Bắt đầu nhận diện khuôn mặt theo thời gian thực
