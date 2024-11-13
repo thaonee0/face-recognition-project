@@ -16,7 +16,7 @@ if gpus:
         print(e)
 
 # Trích xuất khuôn mặt từ ảnh
-def extract_face(filename, required_size=(224, 224 , 3)):  # Thay đổi kích thước ở đây
+def extract_face(filename, required_size=(160, 160)):  # Đảm bảo kích thước chuẩn cho FaceNet
     image = Image.open(filename).convert('RGB')
     pixels = asarray(image)
 
@@ -25,14 +25,18 @@ def extract_face(filename, required_size=(224, 224 , 3)):  # Thay đổi kích t
     results = detector.detect_faces(pixels)
 
     if results:
+        # Chỉ lấy khuôn mặt đầu tiên phát hiện được
         x1, y1, width, height = results[0]['box']
         x1, y1 = abs(x1), abs(y1)
         x2, y2 = x1 + width, y1 + height
         face = pixels[y1:y2, x1:x2]
-        image = Image.fromarray(face).resize(required_size)  # Kích thước đã thay đổi
-        return asarray(image)
 
-# Lưu dữ liệu khuôn mặt
+        # Đảm bảo kích thước ảnh là (160, 160)
+        image = Image.fromarray(face).resize(required_size)
+        return asarray(image)
+    return None  # Trả về None nếu không phát hiện được khuôn mặt
+
+# Lưu dữ liệu khuôn mặt vào tệp .npz
 def process_faces(input_folder, output_file):
     faces, labels = [], []
     for subdir in listdir(input_folder):
@@ -43,12 +47,15 @@ def process_faces(input_folder, output_file):
             face = extract_face(join(path, filename))
             if face is not None:
                 faces.append(face)
-                labels.append(subdir)
-    savez_compressed(output_file, asarray(faces), asarray(labels))
+                labels.append(subdir)  # Sử dụng tên thư mục làm nhãn
+    # Lưu dữ liệu dưới dạng tệp .npz
+    faces_array = asarray(faces)
+    labels_array = asarray(labels)
+    savez_compressed(output_file, faces=faces_array, labels=labels_array)
 
 if __name__ == '__main__':
     # Gán trực tiếp đường dẫn đến thư mục chứa dữ liệu ảnh và file nén đầu ra
-    input_folder = r'D:\FACENET\face_recognition_project\data\raw\val'
-    output_file = r'D:\FACENET\face_recognition_project\data\processed\face_dataset.npz'
+    input_folder = r'D:\FACENET\face-recognition-project\data\raw\train'
+    output_file = r'D:\FACENET\face-recognition-project\data\processed\face_dataset.npz'
     
     process_faces(input_folder, output_file)

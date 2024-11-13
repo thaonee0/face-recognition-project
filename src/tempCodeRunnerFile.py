@@ -1,1 +1,1 @@
-resnet50v2_model
+tensorflow
