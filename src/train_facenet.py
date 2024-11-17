@@ -30,8 +30,15 @@ class FaceNetTrainer:
         faces, final_labels = [], []
         for image_path, label in zip(image_paths, labels):
             face = preprocess_face(image_path)
+            if face is None:
+                print(f"Lỗi khi xử lý ảnh: {image_path}")
+                continue  # Bỏ qua ảnh này nếu không xử lý được
             if face is not None:
                 embedding = get_embedding(self.facenet, face)
+                if embedding is None:
+                    print(f"Lỗi khi tạo embedding cho ảnh: {image_path}")
+                    continue
+
                 faces.append(embedding)
                 final_labels.append(label)
 
