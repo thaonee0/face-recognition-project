@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # Đường dẫn dữ liệu
     face_dataset_path = r"D:\FACENET\face-recognition-project\data\processed\face_dataset"
     face_embedding_path = r"D:\FACENET\face-recognition-project\data\processed\face_embedding"
-    output_model = r"D:\FACENET\face-recognition-project\data\model\svm_model.joblib"
+    output_model = r"D:\FACENET\face-recognition-project\models\svm_model.joblib"
     index_file = 'index.npz'
 
     # Load data
