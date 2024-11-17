@@ -21,48 +21,44 @@ def get_embedding(face_pixels):
     yhat = facenet_model.predict(samples)
     return yhat[0]
 
-# Nhận diện thời gian thực
-def recognize_faces():
-    detector = MTCNN()
-    cap = cv2.VideoCapture(0)
+def recognize_faces_from_camera(model_path, face_extractor, video_source=0):
+    # Tải mô hình
+    model, label_encoder, normalizer = load_model(model_path)
+    if model is None:
+        print("Không thể tải mô hình. Thoát chương trình.")
+        return
+
+    # Mở camera
+    cap = cv2.VideoCapture(video_source)
+    print("Mở camera... Nhấn 'q' để thoát.")
 
     while True:
         ret, frame = cap.read()
         if not ret:
+            print("Không thể nhận khung hình từ camera.")
             break
 
-        # Phát hiện khuôn mặt
-        results = detector.detect_faces(frame)
-        for result in results:
-            x1, y1, width, height = result['box']
-            x1, y1 = abs(x1), abs(y1)
-            x2, y2 = x1 + width, y1 + height
-            face = frame[y1:y2, x1:x2]
+        # Phát hiện và trích xuất khuôn mặt từ khung hình
+        faces = face_extractor(frame)
+        for face in faces:
+            # Tiền xử lý khuôn mặt và tính embedding
+            face_embedding = compute_face_embedding(face)  # Hàm này là của bạn
+            face_embedding_normalized = normalizer.transform([face_embedding])
 
-            # Resize và chuẩn hóa khuôn mặt
-            try:
-                face = cv2.resize(face, (160, 160))
-                embedding = get_embedding(face)
+            # Dự đoán nhãn
+            pred_label = model.predict(face_embedding_normalized)
+            pred_name = label_encoder.inverse_transform(pred_label)[0]
 
-                # Dự đoán nhãn
-                label = svm_model.predict([embedding])[0]
-                confidence = max(svm_model.predict_proba([embedding])[0])
+            # Hiển thị tên trên khung hình
+            x, y, w, h = face['box']
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, pred_name, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-                # Hiển thị kết quả
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(frame, f"{label} ({confidence:.2f})", (x1, y1-10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-            except Exception as e:
-                print(f"Error processing face: {e}")
+        cv2.imshow("Nhận diện khuôn mặt", frame)
 
-        cv2.imshow("Face Recognition", frame)
-
-        # Thoát nếu nhấn phím Q
-        if cv2.waitKey(0) & 0xFF == ord('q'):
+        # Nhấn 'q' để thoát
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
     cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    recognize_faces()

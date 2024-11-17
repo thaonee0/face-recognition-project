@@ -71,8 +71,23 @@ def load_and_save_dataset(input_folder, output_folder, index_file):
     if os.path.exists(index_file_path):
         index_data = list(np.load(index_file_path, allow_pickle=True)['index_data'])
 
-    # Duyệt qua các thư mục con (danh mục người dùng)
-    all_files_exist = True  # Biến kiểm tra xem tất cả tệp đã tồn tại hay chưa
+    # Kiểm tra và loại bỏ thông tin lỗi thời trong index_data
+    updated_index_data = []
+    for entry in index_data:
+        if os.path.exists(entry['file_path']):
+            updated_index_data.append(entry)
+        else:
+            print(f"Tệp {entry['file_path']} không tồn tại. Đã loại bỏ khỏi index.")
+
+    # Lưu lại index.npz đã cập nhật (loại bỏ thông tin lỗi thời)
+    savez_compressed(index_file_path, index_data=updated_index_data)
+    print(f"Đã cập nhật index.npz với thông tin chính xác.")
+
+    # Cập nhật index_data sau khi lọc
+    index_data = updated_index_data
+
+    # Kiểm tra nếu tất cả dataset đã tồn tại
+    all_files_exist = True
     for subdir in os.listdir(input_folder):
         path = join(input_folder, subdir)
         if not isdir(path):
@@ -86,7 +101,8 @@ def load_and_save_dataset(input_folder, output_folder, index_file):
     if all_files_exist:
         print("Tất cả tệp dataset đã tồn tại, không cần xử lý thêm.")
         return False  # Dừng chương trình nếu tất cả dữ liệu đã tồn tại
-    
+
+    # Xử lý các thư mục con (lớp dữ liệu)
     for subdir in os.listdir(input_folder):
         path = join(input_folder, subdir)
         if not isdir(path):
@@ -94,25 +110,26 @@ def load_and_save_dataset(input_folder, output_folder, index_file):
 
         # Tạo đường dẫn tệp kết quả cho từng lớp
         output_file = join(output_folder, f"{subdir}_faces.npz")
-        # Kiểm tra xem tệp .npz đã tồn tại chưa
+
+        # Kiểm tra nếu tệp dataset đã tồn tại
         if os.path.exists(output_file):
-            print(f"Tệp {output_file} đã tồn tại")
+            print(f"Tệp {output_file} đã tồn tại.")
             continue
 
         # Tải tất cả khuôn mặt trong thư mục con
         subdir_faces = load_faces(path)
         if len(subdir_faces) == 0:
-            print(f"Không có hình ảnh khuôn mặt trong thư mục {subdir}")
+            print(f"Không có hình ảnh khuôn mặt trong thư mục {subdir}.")
             continue
+
         subdir_labels = [subdir] * len(subdir_faces)
-        
+
         faces_array = asarray(subdir_faces)
         labels_array = asarray(subdir_labels)
 
         # Lưu khuôn mặt và nhãn vào tệp .npz
         savez_compressed(output_file, faces=faces_array, labels=labels_array)
-
-        print(f"> Đã lưu {len(subdir_faces)} ví dụ cho lớp: {subdir} vào tệp {output_file}")
+        print(f"> Đã lưu {len(subdir_faces)} ví dụ cho lớp: {subdir} vào tệp {output_file}.")
 
         # Thêm thông tin vào index_data
         index_data.append({
@@ -121,16 +138,13 @@ def load_and_save_dataset(input_folder, output_folder, index_file):
             'file_path': output_file
         })
 
-    # Lưu tệp index.npz vào thư mục gốc
-    index_output_file = join(output_folder, index_file)
-    savez_compressed(index_output_file, index_data=index_data)
-    print(f"Tạo tệp index: {index_output_file}")
+    # Lưu lại file index.npz với dữ liệu mới
+    savez_compressed(index_file_path, index_data=index_data)
+    print(f"Tạo tệp index: {index_file_path}")
 
 def main():
     # Đường dẫn tập huấn luyện
     train_folder = r'D:\FACENET\face-recognition-project\data\raw\train'
-    # Đường dẫn tập kiểm tra
-    test_folder = r'D:\FACENET\face-recognition-project\data\raw\val'
     # Đường dẫn lưu file đầu ra
     output_folder = r'D:\FACENET\face-recognition-project\data\processed\face_dataset'
     index_file = 'index.npz'
@@ -141,10 +155,6 @@ def main():
     # Tải tập dữ liệu huấn luyện
     print("Đang tải và xử lý tập huấn luyện...") 
     load_and_save_dataset(train_folder, output_folder, index_file)
-
-    # Tải tập dữ liệu kiểm tra
-    print("Đang tải và xử lý tập kiểm tra...")
-    load_and_save_dataset(test_folder, output_folder, index_file)
 
 if __name__ == '__main__':
     main()
