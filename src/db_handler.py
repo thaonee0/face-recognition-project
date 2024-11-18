@@ -1,6 +1,7 @@
 import mysql.connector
 from mysql.connector import Error
 import os
+from tkinter import messagebox
 
 class DatabaseHandler:
     def __init__(self):
@@ -32,18 +33,6 @@ class DatabaseHandler:
             if cursor:
                 cursor.close()
 
-    def add_attendance(self, id_sinh_vien):
-        try:
-            cursor = self.connection.cursor()
-            sql = "INSERT INTO diem_danh (id_sinh_vien) VALUES (%s)"
-            cursor.execute(sql, (id_sinh_vien,))
-            self.connection.commit()
-        except Error as e:
-            print(f"Lỗi thêm điểm danh: {e}")
-        finally:
-            if cursor:
-                cursor.close()
-
     def get_student_by_name(self, name):
         try:
             cursor = self.connection.cursor(dictionary=True)
@@ -57,30 +46,28 @@ class DatabaseHandler:
             if cursor:
                 cursor.close()
     
-    def record_attendance(self):
+    def record_attendance(self, recognized_name, recognized_prob):
         """Lưu thông tin điểm danh vào cơ sở dữ liệu."""
-        if self.recognized_name and self.recognized_prob:
-            # Kết nối với cơ sở dữ liệu (ví dụ SQLite)
-            conn = sqlite3.connect('attendance.db')
-            cursor = conn.cursor()
-            
-            # Lưu thông tin điểm danh vào cơ sở dữ liệu
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS attendance (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT,
-                    probability REAL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            cursor.execute('''
-                INSERT INTO attendance (name, probability) VALUES (?, ?)
-            ''', (self.recognized_name, self.recognized_prob))
-            conn.commit()
-            conn.close()
+        if recognized_name and recognized_prob:
+            # Tìm kiếm sinh viên trong cơ sở dữ liệu
+            student = self.get_student_by_name(recognized_name)
+            if student:
+                student_id = student['id']
+                
+                # Lưu thông tin điểm danh vào bảng diem_danh
+                try:
+                    cursor = self.connection.cursor()
+                    sql = "INSERT INTO diem_danh (id_sinh_vien) VALUES (%s)"
+                    cursor.execute(sql, (student_id,))
+                    self.connection.commit()
+                    messagebox.showinfo("Điểm danh", f"Đã lưu điểm danh thành công cho {recognized_name}")
+                except Error as e:
+                    print(f"Lỗi khi lưu điểm danh: {e}")
+            else:
+                messagebox.showwarning("Không tìm thấy sinh viên", "Không có sinh viên với tên này!")
+        else:
+            messagebox.showerror("Lỗi", "Chưa nhận diện được sinh viên!")
 
-            messagebox.showinfo("Điểm danh", f"Đã lưu điểm danh thành công cho {self.recognized_name}")
-            self.attendance_button.config(state="disabled")  # Vô hiệu hóa button sau khi đã điểm danh
 
     def close(self):
         if self.connection.is_connected():
