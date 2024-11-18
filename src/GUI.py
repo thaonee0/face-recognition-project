@@ -13,10 +13,9 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 # Sửa lại imports để không sử dụng src.
-from resnet50v2_model import ResNet50V2
 from input_info_dialog import InputInfoDialog
 from capture_and_save_face import capture_and_save_face
-from realtime_recognition import RealtimeRecognition
+from realtime_recognition import recognize_faces_from_camera
 
 class FaceCapturingApp:
     def __init__(self):
@@ -30,6 +29,8 @@ class FaceCapturingApp:
         self.base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         self.recognition_mode = False
+        self.recognized_name = None
+        self.recognized_prob = None
         self.recognizer = None
         
         self.setup_gui()
@@ -62,33 +63,24 @@ class FaceCapturingApp:
                                   font=("Helvetica", 14, "bold"))
         self.info_button.pack(pady=10)
 
-        self.extract_button = Button(right_frame, text="Trích Xuất", 
+        self.training_button = Button(right_frame, text="Training", 
                                      command=self.extract_faces, 
                                      height=2, width=20, 
                                      bg="#FFC107", fg="white",
                                      font=("Helvetica", 14, "bold"))
-        self.extract_button.pack(pady=10)
+        self.training_button.pack(pady=10)
 
-        self.predict_button = Button(right_frame, text="Dự Đoán", 
-                                     command=self.predict_faces, 
-                                     height=2, width=20,
-        bg="#9C27B0", fg="white",
-                                     font=("Helvetica", 14, "bold"))
-        self.predict_button.pack(pady=10)
-
-        self.compare_button = Button(right_frame, text="So Sánh", 
-                                     command=self.compare_faces, 
-                                     height=2, width=20, 
-                                     bg="#F44336", fg="white",
-                                     font=("Helvetica", 14, "bold"))
-        self.compare_button.pack(pady=10)
-
-        self.recognition_button = Button(right_frame, text="Nhận Dạng", 
-                                         command=self.toggle_recognition, 
-                                         height=2, width=20, 
-                                         bg="#E91E63", fg="white",
+        self.recognition_button = Button(right_frame, text="Điểm danh", 
+                                         command=self.predict_faces, 
+                                         height=2, width=20,
+                                         bg="#9C27B0", fg="white",
                                          font=("Helvetica", 14, "bold"))
         self.recognition_button.pack(pady=10)
+
+        # Button điểm danh (ẩn cho đến khi có kết quả)
+        self.attendance_button = tk.Button(self.root, text="Điểm danh", state="disabled", 
+                                           command=self.record_attendance)
+        self.attendance_button.pack(pady=20)
 
         self.cap = cv2.VideoCapture(0)
 
@@ -120,19 +112,6 @@ class FaceCapturingApp:
                 self.camera_label.configure(image=imgtk)
             self.camera_label.after(10, self.show_camera)
 
-    def toggle_recognition(self):
-        if not self.camera_on:
-            messagebox.showerror("Lỗi", "Vui lòng bật camera trước!")
-            return
-            
-        self.recognition_mode = not self.recognition_mode
-        if self.recognition_mode:
-            self.recognizer = RealtimeRecognition()
-            self.recognition_button.config(text="Tắt Nhận Dạng")
-        else:
-            self.recognizer = None
-            self.recognition_button.config(text="Nhận Dạng")
-
     def input_info(self):
         dialog = InputInfoDialog(self.window, self.run_capture_process)
 
@@ -147,37 +126,50 @@ class FaceCapturingApp:
 
     def setup_capture_directories(self):
         train_dir = os.path.join(self.base_path, 'data', 'raw', 'train', self.current_person)
-        val_dir = os.path.join(self.base_path, 'data', 'raw', 'val', self.current_person)
         
         os.makedirs(train_dir, exist_ok=True)
-        os.makedirs(val_dir, exist_ok=True)
         
-        return train_dir, val_dir
-
-    def extract_faces(self):
+        return train_dir
+    
+    def run_training_pipeline():
         try:
-            extract_script = os.path.join(self.base_path, "src", "extract_faces_dataset.py")
-            subprocess.run(['python', extract_script], check=True)
-            messagebox.showinfo("Thành công", "Đã trích xuất khuôn mặt thành công!")
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Lỗi", f"Lỗi khi trích xuất khuôn mặt: {str(e)}")
+            # Chạy file extract_face_dataset.py
+            subprocess.run(["python", "extract_face_dataset.py"], check=True)
+            print("Đã lấy dataset người dùng")
 
-    def predict_faces(self):
-        try:
-            predict_script = os.path.join(self.base_path, "src", "predict_face_embeddings.py")
-            subprocess.run(['python', predict_script], check=True)
-            messagebox.showinfo("Thành công", "Đã dự đoán khuôn mặt thành công!")
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Lỗi", f"Lỗi khi dự đoán khuôn mặt: {str(e)}")
+            # Chạy file predict_face_embedding.py
+            subprocess.run(["python", "predict_face_embedding.py"], check=True)
+            print("Đã trích xuất embedding thành công")
 
-    def compare_faces(self):
-        try:
-            compare_script = os.path.join(self.base_path, "src", "realtime_recognition.py")
-            subprocess.run(['python', compare_script], check=True)
-            messagebox.showinfo("Thành công", "Đã so sánh khuôn mặt thành công!")
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Lỗi", f"Lỗi khi so sánh khuôn mặt: {str(e)}")
+            # Chạy file classification.py
+            subprocess.run(["python", "classification.py"], check=True)
+            print("Đã hoàn thành phân loại")
 
+            # Thông báo thành công
+            messagebox.showinfo("Thành công", "Quá trình huấn luyện hoàn tất!")
+        except subprocess.CalledProcessError as e:
+            print(f"Lỗi khi chạy file: {e}")
+            messagebox.showerror("Lỗi", f"Quá trình huấn luyện thất bại.\nChi tiết lỗi: {e}")
+
+
+    def toggle_recognition(self):
+        if not self.camera_on:
+            messagebox.showerror("Lỗi", "Vui lòng bật camera trước!")
+            return
+            
+        """Bắt đầu nhận diện khuôn mặt."""
+        def on_recognition(name, prob):
+            """Xử lý kết quả nhận diện khuôn mặt."""
+            self.recognized_name = name
+            self.recognized_prob = prob
+            if prob > 70:
+                messagebox.showinfo("Điểm danh thành công", f"Người nhận diện: {name}\nXác suất: {prob:.2f}%")
+                self.attendance_button.config(state="normal")  # Kích hoạt button điểm danh
+
+        # Gọi hàm nhận diện từ file realtime_recognition.py
+        start_recognition(on_recognition)
+
+    
     def run(self):
         self.window.mainloop()
 

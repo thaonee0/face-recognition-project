@@ -144,7 +144,7 @@ def load_and_save_dataset(input_folder, output_folder, index_file):
 
 def main():
     # Đường dẫn tập huấn luyện
-    train_folder = r'D:\FACENET\face-recognition-project\data\raw\train'
+    train_folder = r'D:\FACENET\face-recognition-project\data\raw'
     # Đường dẫn lưu file đầu ra
     output_folder = r'D:\FACENET\face-recognition-project\data\processed\face_dataset'
     index_file = 'index.npz'

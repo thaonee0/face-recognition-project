@@ -3,11 +3,9 @@ import os
 from tkinter import messagebox
 
 def capture_and_save_face(name, camera_control_callback):
-    train_dir = f'D:\\FACENET\\face_recognition_project\\data\\raw\\train\\{name}'
-    val_dir = f'D:\\FACENET\\face_recognition_project\\data\\raw\\val\\{name}'
+    train_dir = f'D:\\FACENET\\face_recognition_project\\data\\raw\\{name}'
     
     os.makedirs(train_dir, exist_ok=True)
-    os.makedirs(val_dir, exist_ok=True)
 
     cap = cv2.VideoCapture(0)  # Mở camera
     count = 0
@@ -20,11 +18,9 @@ def capture_and_save_face(name, camera_control_callback):
 
         # Lưu hình ảnh vào thư mục train và val
         img_path_train = os.path.join(train_dir, f"{name}_{count + 1}.jpg")
-        img_path_val = os.path.join(val_dir, f"{name}_{count + 1}.jpg")
         
         cv2.imwrite(img_path_train, frame)  # Lưu hình ảnh vào train
-        cv2.imwrite(img_path_val, frame)  # Lưu hình ảnh vào val
-        print(f"Hình ảnh đã được lưu: {img_path_train} và {img_path_val}")
+        print(f"Hình ảnh đã được lưu: {img_path_train}")
 
         count += 1
 

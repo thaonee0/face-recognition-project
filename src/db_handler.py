@@ -56,6 +56,31 @@ class DatabaseHandler:
         finally:
             if cursor:
                 cursor.close()
+    
+    def record_attendance(self):
+        """Lưu thông tin điểm danh vào cơ sở dữ liệu."""
+        if self.recognized_name and self.recognized_prob:
+            # Kết nối với cơ sở dữ liệu (ví dụ SQLite)
+            conn = sqlite3.connect('attendance.db')
+            cursor = conn.cursor()
+            
+            # Lưu thông tin điểm danh vào cơ sở dữ liệu
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS attendance (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    probability REAL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                INSERT INTO attendance (name, probability) VALUES (?, ?)
+            ''', (self.recognized_name, self.recognized_prob))
+            conn.commit()
+            conn.close()
+
+            messagebox.showinfo("Điểm danh", f"Đã lưu điểm danh thành công cho {self.recognized_name}")
+            self.attendance_button.config(state="disabled")  # Vô hiệu hóa button sau khi đã điểm danh
 
     def close(self):
         if self.connection.is_connected():
