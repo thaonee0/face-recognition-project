@@ -73,18 +73,26 @@ class FaceCapturingApp:
                                      font=("Helvetica", 14, "bold"))
         self.training_button.pack(pady=10)
 
-        #Điểm danh Button
-        self.recognition_button = Button(right_frame, text="Điểm danh", 
+        #Nhận diện Button
+        self.recognition_button = Button(right_frame, text="Nhận diện", 
                                          command=self.toggle_recognition, 
                                          height=2, width=20,
                                          bg="#9C27B0", fg="white",
                                          font=("Helvetica", 14, "bold"))
         self.recognition_button.pack(pady=10)
 
+        #Điểm danh Button
+        self.attendance_button = Button(right_frame, text="Điểm danh", 
+                                         command=self.toggle_attendance, 
+                                         height=2, width=20,
+                                         bg="#9C27B0", fg="white",
+                                         font=("Helvetica", 14, "bold"))
+        self.attendance_button.pack(pady=10)
+
         # Button xác nhận điểm danh (ẩn cho đến khi có kết quả)
-        self.attendance_button = tk.Button(self.window, text="Điểm danh", state="disabled", 
-                                           command=self.record_attendance)
-        self.attendance_button.pack(pady=20)
+        self.confirm_button = tk.Button(self.window, text="Xác nhận", state="disabled", 
+                                           command=self.confirm_attend)
+        self.confirm_button.pack(pady=20)
 
         self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
@@ -98,7 +106,7 @@ class FaceCapturingApp:
             self.camera_on = True
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # Giảm độ phân giải ngang
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Giảm độ phân giải dọc
-            self.cap.set(cv2.CAP_PROP_FPS, 15)  # Giảm FPS xuống 15
+            self.cap.set(cv2.CAP_PROP_FPS, 10)  # Giảm FPS xuống 15
             self.show_camera()
             self.toggle_button.config(text="Tắt Camera")
 
@@ -171,13 +179,21 @@ class FaceCapturingApp:
             self.recognized_name = name
             self.recognized_prob = prob
             if prob > 70:
-                messagebox.showinfo("Điểm danh thành công", f"{name}")
                 self.attendance_button.config(state="normal")  # Kích hoạt button điểm danh
+            else:
+                self.attendance_button.config(state="disabled")
 
         # Gọi hàm nhận diện từ file realtime_recognition.py
         start_recognition(on_recognition)
 
-    def record_attendance(self):
+    def toggle_attendance(self):
+        if self.recognized_name:
+            messagebox.showinfo("Điểm danh thành công", f"{self.recognized_name}")
+            self.confirm_button.config(state="normal") 
+        else:
+            messagebox.showerror("Lỗi", "Chưa nhận diện được khuôn mặt!")
+
+    def confirm_attend(self):
         if self.recognized_name:
             # Ghi nhận vào cơ sở dữ liệu hoặc lưu lại thông tin người điểm danh
             print(f"{self.recognized_name} đã được điểm danh.")
