@@ -12,13 +12,13 @@ project_root = os.path.dirname(current_dir)
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-# Sửa lại imports để không sử dụng src.
-from resnet50v2_model import ResNet50V2
+# Import các module liên quan
 from input_info_dialog import InputInfoDialog
 from capture_and_save_face import capture_and_save_face
-from realtime_recognition import RealtimeRecognition
+from train_facenet import FaceNetAutoUpdater
+from realtime_recognition import RealTimeRecognizer
 
-class FaceCapturingApp:
+class FaceRecognitionApp:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("Xử lý ảnh - Nhóm 8")
@@ -26,11 +26,24 @@ class FaceCapturingApp:
         
         self.camera_on = False
         self.current_person = None
-        self.image_count = 0
         self.base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         self.recognition_mode = False
         self.recognizer = None
+        
+        # Khởi tạo các đường dẫn cho model
+        self.facenet_model_path = os.path.join(project_root, 'models', 'facenet_keras.h5')
+        self.classifier_model_path = os.path.join(project_root, 'face_recognition_classifier.h5')
+        self.label_names_path = os.path.join(project_root, 'label_names.npy')
+        self.train_dir = os.path.join(project_root, 'data', 'raw', 'train')
+        
+        # Cấu hình MySQL
+        self.db_config = {
+            'user': 'root',
+            'password': '',
+            'host': 'localhost',
+            'database': 'diem_danh'
+        }
         
         self.setup_gui()
 
@@ -48,6 +61,7 @@ class FaceCapturingApp:
         right_frame = Frame(self.window)
         right_frame.pack(side=tk.RIGHT, padx=10, pady=10)
 
+        # Nút Bật Camera
         self.toggle_button = Button(right_frame, text="Bật Camera", 
                                     command=self.toggle_camera, 
                                     height=2, width=20, 
@@ -55,6 +69,7 @@ class FaceCapturingApp:
                                     font=("Helvetica", 14, "bold"))
         self.toggle_button.pack(pady=10)
 
+        # Nút Nhập Thông Tin
         self.info_button = Button(right_frame, text="Nhập Thông Tin", 
                                   command=self.input_info, 
                                   height=2, width=20, 
@@ -62,27 +77,15 @@ class FaceCapturingApp:
                                   font=("Helvetica", 14, "bold"))
         self.info_button.pack(pady=10)
 
-        self.extract_button = Button(right_frame, text="Trích Xuất", 
-                                     command=self.extract_faces, 
-                                     height=2, width=20, 
-                                     bg="#FFC107", fg="white",
-                                     font=("Helvetica", 14, "bold"))
-        self.extract_button.pack(pady=10)
+        # Nút Huấn Luyện
+        self.train_button = Button(right_frame, text="Huấn Luyện", 
+                                   command=self.train_model,
+                                   height=2, width=20, 
+                                   bg="#FF5722", fg="white",
+                                   font=("Helvetica", 14, "bold"))
+        self.train_button.pack(pady=10)
 
-        self.predict_button = Button(right_frame, text="Dự Đoán", 
-                                     command=self.predict_faces, 
-                                     height=2, width=20,
-        bg="#9C27B0", fg="white",
-                                     font=("Helvetica", 14, "bold"))
-        self.predict_button.pack(pady=10)
-
-        self.compare_button = Button(right_frame, text="So Sánh", 
-                                     command=self.compare_faces, 
-                                     height=2, width=20, 
-                                     bg="#F44336", fg="white",
-                                     font=("Helvetica", 14, "bold"))
-        self.compare_button.pack(pady=10)
-
+        # Nút Nhận Dạng
         self.recognition_button = Button(right_frame, text="Nhận Dạng", 
                                          command=self.toggle_recognition, 
                                          height=2, width=20, 
@@ -120,15 +123,47 @@ class FaceCapturingApp:
                 self.camera_label.configure(image=imgtk)
             self.camera_label.after(10, self.show_camera)
 
+    def train_model(self):
+        try:
+            # Tạo instance của FaceNetAutoUpdater
+            updater = FaceNetAutoUpdater(
+                facenet_model_path=self.facenet_model_path,
+                existing_classifier_path=self.classifier_model_path,
+                train_dir=self.train_dir,
+                output_model_path=self.classifier_model_path
+            )
+            
+            # Thực hiện quá trình huấn luyện
+            new_faces, new_labels, num_classes = updater.prepare_new_data()
+            
+            if new_faces is not None:
+                updater.build_updated_classifier(num_classes)
+                updater.train(new_faces, new_labels)
+                updater.save_model()
+                messagebox.showinfo("Thành công", "Đã huấn luyện mô hình thành công!")
+            else:
+                messagebox.showinfo("Thông báo", "Không có dữ liệu mới để huấn luyện!")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Lỗi khi huấn luyện mô hình: {str(e)}")
+
     def toggle_recognition(self):
         if not self.camera_on:
             messagebox.showerror("Lỗi", "Vui lòng bật camera trước!")
             return
-            
+
         self.recognition_mode = not self.recognition_mode
         if self.recognition_mode:
-            self.recognizer = RealtimeRecognition()
-            self.recognition_button.config(text="Tắt Nhận Dạng")
+            try:
+                # Đóng cửa sổ GUI hiện tại
+                self.window.quit()
+                self.window.destroy()
+
+                # Mở cửa sổ nhận diện khuôn mặt mới sau khi đóng GUI
+                subprocess.run([sys.executable, r'D:\FACENET\face-recognition-project\src\realtime_recognition.py'])
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể khởi tạo nhận dạng: {str(e)}")
+                self.recognition_mode = False
+                return
         else:
             self.recognizer = None
             self.recognition_button.config(text="Nhận Dạng")
@@ -154,30 +189,6 @@ class FaceCapturingApp:
         
         return train_dir, val_dir
 
-    def extract_faces(self):
-        try:
-            extract_script = os.path.join(self.base_path, "src", "extract_faces_dataset.py")
-            subprocess.run(['python', extract_script], check=True)
-            messagebox.showinfo("Thành công", "Đã trích xuất khuôn mặt thành công!")
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Lỗi", f"Lỗi khi trích xuất khuôn mặt: {str(e)}")
-
-    def predict_faces(self):
-        try:
-            predict_script = os.path.join(self.base_path, "src", "predict_face_embeddings.py")
-            subprocess.run(['python', predict_script], check=True)
-            messagebox.showinfo("Thành công", "Đã dự đoán khuôn mặt thành công!")
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Lỗi", f"Lỗi khi dự đoán khuôn mặt: {str(e)}")
-
-    def compare_faces(self):
-        try:
-            compare_script = os.path.join(self.base_path, "src", "realtime_recognition.py")
-            subprocess.run(['python', compare_script], check=True)
-            messagebox.showinfo("Thành công", "Đã so sánh khuôn mặt thành công!")
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("Lỗi", f"Lỗi khi so sánh khuôn mặt: {str(e)}")
-
     def run(self):
         self.window.mainloop()
 
@@ -186,5 +197,5 @@ class FaceCapturingApp:
             self.cap.release()
 
 if __name__ == "__main__":
-    app = FaceCapturingApp()
+    app = FaceRecognitionApp()
     app.run()

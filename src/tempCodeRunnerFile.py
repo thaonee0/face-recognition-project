@@ -1,142 +1,201 @@
+import tkinter as tk
+from tkinter import Label, Button, Frame, messagebox
 import cv2
-import numpy as np
-import tensorflow as tf
-from mtcnn.mtcnn import MTCNN
+from PIL import Image, ImageTk
 import os
+import sys
+import subprocess
 
-class RealtimeRecognition:
-    def __init__(self, model_dir):
-        # Paths for the model
-        self.model_path = os.path.join(model_dir, 'face_recognition_model.h5')
-        
-        # Load model
-        self.model = tf.keras.models.load_model(self.model_path)
-        
-        # Initialize MTCNN detector
-        self.detector = MTCNN()
+# Thêm đường dẫn gốc của project vào PYTHONPATH
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+if project_root not in sys.path:
+    sys.path.append(project_root)
 
-        # Load precomputed embeddings and labels
-        embedding_data = np.load(r'D:\FACENET\face-recognition-project\data\processed\face_embedding.npz')
-        self.embeddings = embedding_data['embeddings']
-        self.labels = embedding_data['labels']
+# Import các module liên quan
+from input_info_dialog import InputInfoDialog
+from capture_and_save_face import capture_and_save_face
+from train_facenet import FaceNetAutoUpdater
+from realtime_recognition import RealTimeRecognizer
 
-        # Normalize the embeddings
-        self.embeddings = self.embeddings / np.linalg.norm(self.embeddings, axis=1, keepdims=True)
+class FaceRecognitionApp:
+    def __init__(self):
+        self.window = tk.Tk()
+        self.window.title("Xử lý ảnh - Nhóm 8")
+        self.window.geometry("1000x800")
         
-        print("Model and embeddings loaded successfully.")
+        self.camera_on = False
+        self.current_person = None
+        self.base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        self.recognition_mode = False
+        self.recognizer = None
+        
+        # Khởi tạo các đường dẫn cho model
+        self.facenet_model_path = os.path.join(project_root, 'models', 'facenet_keras.h5')
+        self.classifier_model_path = os.path.join(project_root, 'face_recognition_classifier.h5')
+        self.label_names_path = os.path.join(project_root, 'label_names.npy')
+        self.train_dir = os.path.join(project_root, 'data', 'raw', 'train')
+        
+        # Cấu hình MySQL
+        self.db_config = {
+            'user': 'root',
+            'password': '',
+            'host': 'localhost',
+            'database': 'diem_danh'
+        }
+        
+        self.setup_gui()
 
-    def preprocess_face(self, face_img):
-        """Preprocess the face image for embedding calculation"""
-        # Resize to 160x160 (FaceNet requirement)
-        face_img = cv2.resize(face_img, (160, 160))
-        
-        # Convert BGR to RGB
-        face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
-        
-        # Normalize: Standardization (zero mean, unit variance)
-        face_img = face_img.astype('float32')
-        mean, std = face_img.mean(), face_img.std()
-        face_img = (face_img - mean) / std
-        
-        # L2 Normalization
-        norm = np.sqrt(np.sum(np.square(face_img)))
-        face_img = face_img / norm
-        
-        return face_img
+    def setup_gui(self):
+        title_label = Label(self.window, text="Xử Lý Ảnh - Nhóm 8", font=("Helvetica", 34))
+        title_label.pack(pady=(60, 5))
 
-    def predict_face(self, face):
-        """Recognize the face by comparing with precomputed embeddings"""
-        # Preprocess face (resize, normalize, etc.)
-        processed_face = self.preprocess_face(face)
-        
-        # Tạo embedding từ mô hình face_recognition_model.h5 (mô hình đã được huấn luyện từ trước)
-        # processed_face phải có dạng (1, 160, 160, 3) sau khi tiền xử lý.
-        embedding = self.model.predict(np.expand_dims(processed_face, axis=0))  # Đảm bảo kích thước là (1, 160, 160, 3)
-        
-        # L2 normalization cho embedding
-        embedding = embedding / np.linalg.norm(embedding, axis=1, keepdims=True)
+        self.left_frame = Frame(self.window, width=800, height=580)
+        self.left_frame.pack(side=tk.LEFT, padx=10, pady=10)
+        self.left_frame.pack_propagate(False)
 
-        # Tính khoảng cách Euclidean giữa embedding của khuôn mặt hiện tại và các embedding đã lưu
-        distances = np.linalg.norm(self.embeddings - embedding, axis=1)
-        
-        # Tìm label với khoảng cách nhỏ nhất
-        best_idx = np.argmin(distances)
-        confidence = 1 / (distances[best_idx] + 1e-6)  # Confidence là nghịch đảo của khoảng cách
+        self.camera_label = Label(self.left_frame, bg="black")
+        self.camera_label.pack(fill=tk.BOTH, expand=True)
 
-        if confidence > 0.7:  # Ngưỡng độ tin cậy
-            return self.labels[best_idx], confidence
+        right_frame = Frame(self.window)
+        right_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        # Nút Bật Camera
+        self.toggle_button = Button(right_frame, text="Bật Camera", 
+                                    command=self.toggle_camera, 
+                                    height=2, width=20, 
+                                    bg="#4CAF50", fg="white",
+                                    font=("Helvetica", 14, "bold"))
+        self.toggle_button.pack(pady=10)
+
+        # Nút Nhập Thông Tin
+        self.info_button = Button(right_frame, text="Nhập Thông Tin", 
+                                  command=self.input_info, 
+                                  height=2, width=20, 
+                                  bg="#FFC107", fg="white",
+                                  font=("Helvetica", 14, "bold"))
+        self.info_button.pack(pady=10)
+
+        # Nút Huấn Luyện
+        self.train_button = Button(right_frame, text="Huấn Luyện", 
+                                   command=self.train_model,
+                                   height=2, width=20, 
+                                   bg="#FF5722", fg="white",
+                                   font=("Helvetica", 14, "bold"))
+        self.train_button.pack(pady=10)
+
+        # Nút Nhận Dạng
+        self.recognition_button = Button(right_frame, text="Nhận Dạng", 
+                                         command=self.toggle_recognition, 
+                                         height=2, width=20, 
+                                         bg="#E91E63", fg="white",
+                                         font=("Helvetica", 14, "bold"))
+        self.recognition_button.pack(pady=10)
+
+        self.cap = cv2.VideoCapture(0)
+
+    def toggle_camera(self):
+        if self.camera_on:
+            self.camera_on = False
+            self.cap.release()
+            self.camera_label.config(image="")
+            self.toggle_button.config(text="Bật Camera")
         else:
-            return "Unknown", confidence
+            self.camera_on = True
+            self.show_camera()
+            self.toggle_button.config(text="Tắt Camera")
 
-    def detect_face(self, frame):
-        """Detect faces in the frame"""
-        # Use MTCNN to detect faces in the frame
-        results = self.detector.detect_faces(frame)
-        
-        faces = []
-        face_positions = []
-        
-        for result in results:
-            if result['confidence'] >= 0.9:  # Confidence threshold
-                x, y, w, h = result['box']
-                face = frame[y:y + h, x:x + w]
-                faces.append(face)
-                face_positions.append((x, y, w, h))
-        
-        return zip(faces, face_positions)
+    def show_camera(self):
+        if self.camera_on:
+            ret, frame = self.cap.read()
+            if ret:
+                if self.recognition_mode and self.recognizer:
+                    frame = self.recognizer.process_frame(frame)
+                    
+                img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(img)
+                img = img.resize((self.camera_label.winfo_width(), 
+                                  self.camera_label.winfo_height()), 
+                                  Image.LANCZOS)
+                imgtk = ImageTk.PhotoImage(image=img)
+                self.camera_label.imgtk = imgtk
+                self.camera_label.configure(image=imgtk)
+            self.camera_label.after(10, self.show_camera)
 
-    def draw_detection(self, frame, face_pos, name, confidence):
-        """Draw recognition result on the frame"""
-        x, y, w, h = face_pos
+    def train_model(self):
+        try:
+            # Tạo instance của FaceNetAutoUpdater
+            updater = FaceNetAutoUpdater(
+                facenet_model_path=self.facenet_model_path,
+                existing_classifier_path=self.classifier_model_path,
+                train_dir=self.train_dir,
+                output_model_path=self.classifier_model_path
+            )
+            
+            # Thực hiện quá trình huấn luyện
+            new_faces, new_labels, num_classes = updater.prepare_new_data()
+            
+            if new_faces is not None:
+                updater.build_updated_classifier(num_classes)
+                updater.train(new_faces, new_labels)
+                updater.save_model()
+                messagebox.showinfo("Thành công", "Đã huấn luyện mô hình thành công!")
+            else:
+                messagebox.showinfo("Thông báo", "Không có dữ liệu mới để huấn luyện!")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Lỗi khi huấn luyện mô hình: {str(e)}")
+
+    def toggle_recognition(self):
+        if not self.camera_on:
+            messagebox.showerror("Lỗi", "Vui lòng bật camera trước!")
+            return
+
+        self.recognition_mode = not self.recognition_mode
+        if self.recognition_mode:
+            try:
+                # Đóng cửa sổ GUI hiện tại
+                self.window.quit()
+                self.window.destroy()
+
+                # Mở cửa sổ nhận diện khuôn mặt mới sau khi đóng GUI
+                subprocess.run([sys.executable, r'D:\FACENET\face-recognition-project\src\realtime_recognition.py'])
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể khởi tạo nhận dạng: {str(e)}")
+                self.recognition_mode = False
+                return
+        else:
+            self.recognizer = None
+            self.recognition_button.config(text="Nhận Dạng")
+
+    def input_info(self):
+        dialog = InputInfoDialog(self.window, self.run_capture_process)
+
+    def run_capture_process(self, ten, lop):
+        self.current_person = ten
+        if not self.camera_on:
+            messagebox.showerror("Lỗi", "Vui lòng bật camera trước!")
+            return
+        messagebox.showinfo("Thông báo", "Bắt đầu chụp 50 ảnh tự động.")
+        self.setup_capture_directories()
+        capture_and_save_face(self.current_person, self.toggle_camera)
+
+    def setup_capture_directories(self):
+        train_dir = os.path.join(self.base_path, 'data', 'raw', 'train', self.current_person)
+        val_dir = os.path.join(self.base_path, 'data', 'raw', 'val', self.current_person)
         
-        # Draw face bounding box
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        os.makedirs(train_dir, exist_ok=True)
+        os.makedirs(val_dir, exist_ok=True)
         
-        # Label with name and confidence
-        label = f"{name} ({confidence * 100:.1f}%)"
-        cv2.putText(frame, label, (x, y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        return train_dir, val_dir
 
     def run(self):
-        """Run real-time face recognition"""
-        cap = cv2.VideoCapture(0)  # Open webcam
-        
-        if not cap.isOpened():
-            print("Error: Could not open webcam.")
-            return
-        
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                print("Failed to capture frame")
-                break
-            
-            # Detect faces in the frame
-            detected_faces = self.detect_face(frame)
-            
-            if detected_faces:
-                for face, face_pos in detected_faces:
-                    # Recognize face
-                    name, confidence = self.predict_face(face)
-                    
-                    # Draw results on the frame
-                    self.draw_detection(frame, face_pos, name, confidence)
-            
-            else:
-                print("No face detected in the frame.")
-            
-            # Show frame with recognition results
-            cv2.imshow("Realtime Face Recognition", frame)
-            
-            # Exit on pressing 'q'
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        
-        cap.release()
-        cv2.destroyAllWindows()
+        self.window.mainloop()
 
-# Run recognition
+    def __del__(self):
+        if self.camera_on:
+            self.cap.release()
+
 if __name__ == "__main__":
-    model_dir = r'D:\FACENET\face-recognition-project\models\trained'  # Path to directory containing your trained model and dataset subfolders
-    recognition_system = RealtimeRecognition(model_dir)
-    recognition_system.run()
+    app = FaceRecognitionApp()
+    app.run()
