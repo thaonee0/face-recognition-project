@@ -1,70 +1,34 @@
-import numpy as np
-import cv2
-from tensorflow.keras.models import load_model
 import mysql.connector
 from mysql.connector import Error
 from datetime import datetime, date
+from tkinter import messagebox
+import numpy as np
 from mtcnn import MTCNN
-import tensorflow as tf
-import os
-
-def preprocess_face(img, required_size=(160, 160)):
-    """Resize và chuẩn hóa ảnh khuôn mặt"""
-    try:
-        if img is None:
-            return None
-            
-        # Chuyển đổi BGR sang RGB
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        # Resize ảnh
-        img_resized = cv2.resize(img_rgb, required_size)
-        
-        # Chuyển đổi sang float32 và chuẩn hóa
-        face_pixels = img_resized.astype('float32')
-        
-        # Chuẩn hóa 
-        mean = face_pixels.mean()
-        std = face_pixels.std()
-        face_pixels = (face_pixels - mean) / std
-        
-        # Mở rộng chiều
-        face_pixels = np.expand_dims(face_pixels, axis=0)
-        
-        return face_pixels
-        
-    except Exception as e:
-        print(f"Lỗi trong quá trình xử lý ảnh: {str(e)}")
-        return None
-
-def get_embedding(model, face_pixels):
-    """Trích xuất đặc trưng khuôn mặt sử dụng FaceNet"""
-    try:
-        # Dự đoán
-        yhat = model.predict(face_pixels)
-        return yhat[0]
-        
-    except Exception as e:
-        print(f"Lỗi khi trích xuất embedding: {str(e)}")
-        return None
+from keras.models import load_model
+import cv2
 
 class RealTimeRecognizer:
     def __init__(self, facenet_model_path, classifier_model_path, label_names_path, db_config):
-        """
-        Khởi tạo Real-time Face Recognition system
-        
-        Parameters:
-        - facenet_model_path: Đường dẫn đến model FaceNet
-        - classifier_model_path: Đường dẫn đến model phân loại
-        - label_names_path: Đường dẫn đến file nhãn
-        - db_config: Cấu hình kết nối database
-        """
         self.facenet = load_model(facenet_model_path, compile=False)
         self.classifier = load_model(classifier_model_path, compile=False)
         self.label_names = np.load(label_names_path)
         self.detector = MTCNN()
         self.db_config = db_config
-        self.attended_students = set()
+        self.attended_students = set()  # Để theo dõi những sinh viên đã điểm danh trong ngày
+
+    def preprocess_face(self, img, required_size=(160, 160)):
+        if img is None:
+            return None
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img_resized = cv2.resize(img_rgb, required_size)
+        face_pixels = img_resized.astype('float32')
+        mean, std = face_pixels.mean(), face_pixels.std()
+        face_pixels = (face_pixels - mean) / std
+        face_pixels = np.expand_dims(face_pixels, axis=0)
+        return face_pixels
+
+    def get_embedding(self, face_pixels):
+        return self.facenet.predict(face_pixels)[0]
 
     def extract_student_info(self, label_name):
         """Trích xuất tên và mã số sinh viên từ nhãn"""
@@ -137,7 +101,9 @@ class RealTimeRecognizer:
                     connection.commit()
 
                     self.attended_students.add(student_id)
-                    print(f"""
+                    
+                    # Hiển thị thông báo thành công trên giao diện Tkinter
+                    messagebox.showinfo("Điểm danh thành công", f"""
                     Đã điểm danh thành công:
                     - Tên: {student['ten_sinh_vien']}
                     - MSSV: {student['mssv']}
@@ -157,64 +123,27 @@ class RealTimeRecognizer:
             if 'connection' in locals() and connection.is_connected():
                 connection.close()
 
-    def recognize(self):
-        """Thực hiện nhận diện khuôn mặt thời gian thực"""
-        cap = cv2.VideoCapture(0)
+    def recognize_frame(self, frame):
+        results = self.detector.detect_faces(frame)
+        recognition_results = []
 
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+        for result in results:
+            x, y, w, h = result['box']
+            face = frame[y:y + h, x:x + w]
+            face_processed = self.preprocess_face(face)
 
-            results = self.detector.detect_faces(frame)
-            for result in results:
-                x, y, w, h = result['box']
-                face = frame[y:y + h, x:x + w]
+            if face_processed is not None:
+                embedding = self.get_embedding(face_processed)
+                prediction = self.classifier.predict(np.expand_dims(embedding, axis=0))
+                label_index = np.argmax(prediction)
+                label_name = self.label_names[label_index]
+                confidence = np.max(prediction)
 
-                face_processed = preprocess_face(face)
-                if face_processed is not None:
-                    embedding = get_embedding(self.facenet, face_processed)
-                    prediction = self.classifier.predict(np.expand_dims(embedding, axis=0))
-                    label_index = np.argmax(prediction)
-                    label_name = self.label_names[label_index]
-                    confidence = np.max(prediction)
-
-                    # Hiển thị tên và MSSV
-                    display_name, mssv = self.extract_student_info(label_name)
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                if confidence > 0.50:
+                    name, mssv = label_name.split('-')
+                    recognition_results.append({'name': name, 'mssv': mssv, 'box': (x, y, w, h), 'confidence': confidence})
                     
-                    # Hiển thị tên phía trên hình chữ nhật
-                    cv2.putText(frame, f"{display_name}", (x, y - 25), 
-                              cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
-                    # Hiển thị MSSV phía dưới tên
-                    cv2.putText(frame, f"MSSV: {mssv}", (x, y - 5),
-                              cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                    
-                    if confidence > 0.55:  # Ngưỡng tin cậy
-                        print(f"Dự đoán: {display_name} (MSSV: {mssv}) với độ chính xác {confidence:.2f}")
-                        self.check_and_update_database(label_name)
+                    # Cập nhật thông tin điểm danh vào database
+                    self.check_and_update_database(label_name)
 
-            cv2.imshow('Real-time Face Recognition', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        cap.release()
-        cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    # Cấu hình đường dẫn
-    facenet_model_path = 'models/facenet_keras.h5'
-    classifier_model_path = 'face_recognition_classifier.h5'
-    label_names_path = 'label_names.npy'
-
-    # Cấu hình database
-    db_config = {
-        'host': 'localhost',
-        'user': 'root',
-        'password': '',
-        'database': 'diem_danh'
-    }
-
-    # Khởi tạo và chạy hệ thống
-    recognizer = RealTimeRecognizer(facenet_model_path, classifier_model_path, label_names_path, db_config)
-    recognizer.recognize()
+        return recognition_results
