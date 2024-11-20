@@ -106,7 +106,7 @@ class FaceCapturingApp:
             self.camera_on = True
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # Giảm độ phân giải ngang
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Giảm độ phân giải dọc
-            self.cap.set(cv2.CAP_PROP_FPS, 10)  # Giảm FPS xuống 15
+            self.cap.set(cv2.CAP_PROP_FPS, 8)  # Giảm FPS 
             self.show_camera()
             self.toggle_button.config(text="Tắt Camera")
 
