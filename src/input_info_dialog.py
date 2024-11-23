@@ -42,7 +42,7 @@ class InputInfoDialog(simpledialog.Dialog):
             
             # Lưu vào database
             db = DatabaseHandler()
-            student_id = db.add_student(name, class_name, faculty, avatar_path)
+            student_id = db.add_student(name, class_name, faculty, avatar_path, mssv)
             db.close()
             
             if student_id:

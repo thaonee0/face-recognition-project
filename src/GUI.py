@@ -95,11 +95,11 @@ class FaceCapturingApp:
         self.attendance_button.pack(pady=10)
 
         # Button xác nhận điểm danh (ẩn cho đến khi có kết quả)
-        self.confirm_button = Button(right_frame, text="Xác nhận", state="disabled",
+        """self.confirm_button = Button(right_frame, text="Xác nhận", state="disabled",
                                         height=2, width=20,
                                         font=("Helvetica", 14, "bold"),
                                         command=self.confirm_attend)
-        self.confirm_button.pack(pady=20)
+        self.confirm_button.pack(pady=20)"""
 
         self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
@@ -184,7 +184,14 @@ class FaceCapturingApp:
         def on_recognition(name, prob):
             """Xử lý kết quả nhận diện khuôn mặt."""
             self.window.after(0, self.update_recognition_result, name, prob)
-
+            # Kiểm tra nếu tên có trong student_data hoặc lấy MSSV từ cơ sở dữ liệu
+            mssv = self.db.get_mssv_from_name(name)  # Lấy MSSV từ cơ sở dữ liệu
+            if mssv:
+                recognized_info = f"{name}-{mssv}"
+            else:
+                recognized_info = name  # Nếu không tìm thấy MSSV thì chỉ dùng tên
+            self.window.after(0, self.update_recognition_result, recognized_info, prob)
+        
         def recognition_thread():
             start_recognition(on_recognition)
 
@@ -200,23 +207,25 @@ class FaceCapturingApp:
         else:
             self.attendance_button.config(state="disabled")
 
-    def toggle_attendance(self):
+    def toggle_attendance(self): 
         if self.recognized_name:
-            messagebox.showinfo("Điểm danh thành công", f"{self.recognized_name}")
-            self.confirm_button.config(state="normal") 
-        else:
-            messagebox.showerror("Lỗi", "Chưa nhận diện được khuôn mặt!")
-
-    def confirm_attend(self):
-        if self.recognized_name:
-            success, message = self.db.check_attendance(self.recognized_name)
-            # Ghi nhận vào cơ sở dữ liệu hoặc lưu lại thông tin người điểm danh
+            # Tách recognized_name thành ten_sinh_vien và mssv
+            try:
+                ten_sinh_vien, mssv = self.recognized_name.split('-')  # Tách theo dấu '-'
+                full_name_with_mssv = f"{ten_sinh_vien}-{mssv}"  # Tạo lại chuỗi đầy đủ
+            except ValueError:
+                messagebox.showerror("Lỗi", "Tên sinh viên hoặc MSSV không hợp lệ!")
+                return
+            
+            messagebox.showinfo("Điểm danh thành công", f"{full_name_with_mssv}")
+            success, message = self.db.check_attendance(full_name_with_mssv)
             if success:
                 messagebox.showinfo("Thông báo", message)
             else:
                 messagebox.showerror("Thông báo", message)
         else:
             messagebox.showerror("Lỗi", "Chưa nhận diện được khuôn mặt!")
+
     
     def run(self):
         self.window.mainloop()
@@ -230,3 +239,14 @@ class FaceCapturingApp:
 if __name__ == "__main__":
     app = FaceCapturingApp()
     app.run()
+
+"""    def confirm_attend(self):
+        if self.recognized_name:
+            success, message = self.db.check_attendance(self.recognized_name)
+            # Ghi nhận vào cơ sở dữ liệu hoặc lưu lại thông tin người điểm danh
+            if success:
+                messagebox.showinfo("Thông báo", message)
+            else:
+                messagebox.showerror("Thông báo", message)
+        else:
+            messagebox.showerror("Lỗi", "Chưa nhận diện được khuôn mặt!")"""

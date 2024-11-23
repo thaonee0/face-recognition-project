@@ -28,14 +28,14 @@ class DatabaseHandler:
             print("Kết nối cơ sở dữ liệu đã mất, thử kết nối lại...")
             self.connect_to_database()
 
-    def add_student(self, ten_sinh_vien, lop, khoa, anh_dai_dien):
+    def add_student(self, ten_sinh_vien, lop, khoa, anh_dai_dien, mssv):
         """Thêm sinh viên mới vào cơ sở dữ liệu."""
         self.reconnect()
         try:
             cursor = self.connection.cursor()
-            sql = """INSERT INTO sinhvien (ten_sinh_vien, lop, khoa, anh_dai_dien) 
-                     VALUES (%s, %s, %s, %s)"""
-            values = (ten_sinh_vien, lop, khoa, anh_dai_dien)
+            sql = """INSERT INTO sinhvien (ten_sinh_vien, lop, khoa, anh_dai_dien, mssv) 
+                     VALUES (%s, %s, %s, %s, %s)"""
+            values = (ten_sinh_vien, lop, khoa, anh_dai_dien, mssv)
             cursor.execute(sql, values)
             self.connection.commit()
             return cursor.lastrowid
@@ -46,36 +46,36 @@ class DatabaseHandler:
             if cursor:
                 cursor.close()
 
-    def get_student_by_name(self, name):
-        """Lấy thông tin sinh viên dựa vào tên."""
-        self.reconnect()
-        try:
-            cursor = self.connection.cursor(dictionary=True)
-            sql = "SELECT * FROM sinhvien WHERE ten_sinh_vien = %s"
-            cursor.execute(sql, (name,))
-            return cursor.fetchone()
-        except Error as e:
-            print(f"Lỗi truy vấn sinh viên: {e}")
-            return None
-        finally:
-            if cursor:
-                cursor.close()
+    def get_mssv_from_name(self, name):
+        """Truy vấn MSSV từ cơ sở dữ liệu dựa trên tên sinh viên."""
+        cursor = self.connection.cursor(dictionary=True)
+        cursor.execute("SELECT ten_sinh_vien FROM sinhvien WHERE ten_sinh_vien = %s", (name,))
+        student = cursor.fetchone()
+        cursor.close()
+        
+        if student:
+            return student['ten_sinh_vien']
+        else:
+            return None 
 
-    def check_attendance(self, ten_sinh_vien):
+    def check_attendance(self, recognized_name):
         """Kiểm tra và thực hiện điểm danh."""
         self.reconnect()
         try:
             cursor = self.connection.cursor(dictionary=True)
 
-            print(f"Đang kiểm tra điểm danh cho sinh viên: {ten_sinh_vien}")
+            # Tách recognized_name thành ten_sinh_vien và mssv
+            ten_sinh_vien, mssv = recognized_name.split('-')  # Tách từ recognized_name
             
-            # Lấy thông tin sinh viên từ bảng sinhvien
-            cursor.execute("SELECT * FROM sinhvien WHERE ten_sinh_vien = %s", (ten_sinh_vien,))
+            print(f"Đang kiểm tra điểm danh cho sinh viên: {ten_sinh_vien} với MSSV: {mssv}")
+            
+            # Lấy thông tin sinh viên từ bảng sinhvien theo ten_sinh_vien
+            cursor.execute("SELECT * FROM sinhvien WHERE ten_sinh_vien = %s AND mssv = %s", (ten_sinh_vien, mssv))
             student = cursor.fetchone()
             
             if not student:
-                print(f"Không tìm thấy sinh viên {ten_sinh_vien} trong cơ sở dữ liệu.")
-                return False, f"Không tìm thấy sinh viên {ten_sinh_vien} trong cơ sở dữ liệu."
+                print(f"Không tìm thấy sinh viên {ten_sinh_vien} - {mssv} trong cơ sở dữ liệu.")
+                return False, f"Không tìm thấy sinh viên {ten_sinh_vien} - {mssv} trong cơ sở dữ liệu."
             
             print(f"Thông tin sinh viên: {student}")
             
@@ -109,13 +109,15 @@ class DatabaseHandler:
             
             print(success_message)
             return True, success_message
-                
+
         except Error as e:
-            print(f"Lỗi khi điểm danh: {e.with_traceback()}")
-            return False, f"Lỗi khi điểm danh: {e}"
+            print(f"Lỗi khi điểm danh: {str(e)}")  # In lỗi đúng cách
+            return False, f"Lỗi khi điểm danh: {str(e)}"
         finally:
             if cursor:
                 cursor.close()
+
+
 
     def close(self):
         """Đóng kết nối tới cơ sở dữ liệu."""
