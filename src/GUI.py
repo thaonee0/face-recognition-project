@@ -72,10 +72,10 @@ class FaceCapturingApp:
 
         #Training Button
         self.training_button = Button(right_frame, text="Training", 
-                                     command=self.run_training_pipeline, 
-                                     height=2, width=20, 
-                                     bg="#FFC107", fg="white",
-                                     font=("Helvetica", 14, "bold"))
+                              command=self.run_training_pipeline, 
+                              height=2, width=20, 
+                              bg="#FFC107", fg="white",
+                              font=("Helvetica", 14, "bold"))
         self.training_button.pack(pady=10)
 
         #Nhận diện Button
@@ -88,26 +88,34 @@ class FaceCapturingApp:
 
         #Điểm danh Button
         self.attendance_button = Button(right_frame, text="Điểm danh", 
-                                         command=self.toggle_attendance, 
+                                        command=self.toggle_attendance,
                                          height=2, width=20,
                                          bg="#9C27B0", fg="white",
                                          font=("Helvetica", 14, "bold"))
         self.attendance_button.pack(pady=10)
 
         # Button xác nhận điểm danh (ẩn cho đến khi có kết quả)
-        self.confirm_button = tk.Button(self.window, text="Xác nhận", state="disabled", 
-                                           command=self.confirm_attend)
+        self.confirm_button = Button(right_frame, text="Xác nhận", state="disabled",
+                                        height=2, width=20,
+                                        font=("Helvetica", 14, "bold"),
+                                        command=self.confirm_attend)
         self.confirm_button.pack(pady=20)
 
         self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
     def toggle_camera(self):
         if self.camera_on:
+            # Tắt camera
             self.camera_on = False
             self.cap.release()
             self.camera_label.config(image="")
             self.toggle_button.config(text="Bật Camera")
         else:
+            # Bật lại camera
+            self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Khởi tạo lại đối tượng camera
+            if not self.cap.isOpened():
+                messagebox.showerror("Lỗi", "Không thể mở camera. Vui lòng kiểm tra thiết bị!")
+                return
             self.camera_on = True
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # Giảm độ phân giải ngang
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Giảm độ phân giải dọc
@@ -142,31 +150,26 @@ class FaceCapturingApp:
             messagebox.showerror("Lỗi", "Vui lòng bật camera trước!")
             return
         messagebox.showinfo("Thông báo", "Bắt đầu chụp 50 ảnh tự động.")
-        self.setup_capture_directories()
         capture_and_save_face(self.current_person, self.toggle_camera)
 
-    def setup_capture_directories(self):
-        train_dir = os.path.join(self.base_path, 'data', 'raw', 'train', self.current_person)
-        
-        os.makedirs(train_dir, exist_ok=True)
-        
-        return train_dir
-    
-    def run_training_pipeline():
+    def run_training_pipeline(self, event=None):  # Thêm self để liên kết class
         try:
-            # Chạy file extract_face_dataset.py
-            subprocess.run(["python", "extract_face_dataset.py"], check=True)
-            print("Đã lấy dataset người dùng")
+            # Đường dẫn tuyệt đối đến các file script
+            extract_script = r"D:\FACENET\face-recognition-project\src\extract_face_dataset.py"
+            embedding_script = r"D:\FACENET\face-recognition-project\src\predict_face_embedding.py"
+            classification_script = r"D:\FACENET\face-recognition-project\src\classification.py"
 
-            # Chạy file predict_face_embedding.py
-            subprocess.run(["python", "predict_face_embedding.py"], check=True)
-            print("Đã trích xuất embedding thành công")
+            # Chạy lần lượt từng script
+            subprocess.run(["python", extract_script], check=True)
+            print("Đã chạy extract_face_dataset.py thành công")
 
-            # Chạy file classification.py
-            subprocess.run(["python", "classification.py"], check=True)
-            print("Đã hoàn thành phân loại")
+            subprocess.run(["python", embedding_script], check=True)
+            print("Đã chạy predict_face_embedding.py thành công")
 
-            # Thông báo thành công
+            subprocess.run(["python", classification_script], check=True)
+            print("Đã chạy classification.py thành công")
+
+            # Thông báo hoàn thành
             messagebox.showinfo("Thành công", "Quá trình huấn luyện hoàn tất!")
         except subprocess.CalledProcessError as e:
             print(f"Lỗi khi chạy file: {e}")
@@ -192,7 +195,7 @@ class FaceCapturingApp:
         """Cập nhật kết quả nhận diện trên GUI"""
         self.recognized_name = name
         self.recognized_prob = prob
-        if prob > 70:
+        if prob > 60:
             self.attendance_button.config(state="normal")  # Kích hoạt button điểm danh
         else:
             self.attendance_button.config(state="disabled")

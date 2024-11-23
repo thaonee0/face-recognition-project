@@ -1,24 +1,17 @@
 import os
 import sys
 import io
-import matplotlib.pyplot as plt
 import numpy as np
 from os import listdir
 from os.path import join, isdir
 from PIL import Image
 from numpy import asarray, savez_compressed
-from matplotlib import pyplot
 from mtcnn.mtcnn import MTCNN
 
 # Đảm bảo output của hệ thống sử dụng encoding utf-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 import tensorflow as tf
-
-# Định nghĩa hàm với @tf.function và experimental_relax_shapes
-@tf.function(experimental_relax_shapes=True)
-def predict_function(input_data):
-    return model(input_data)
 
 # extract a single face from a given photograph
 def extract_face(filename, required_size=(160, 160)):
@@ -151,6 +144,9 @@ def main():
 
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
+
+    # Kiểm tra thư mục đầu vào
+    print(f"Thư mục train_folder: {os.listdir(train_folder)}")
 
     # Tải tập dữ liệu huấn luyện
     print("Đang tải và xử lý tập huấn luyện...") 

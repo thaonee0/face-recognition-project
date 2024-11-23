@@ -83,8 +83,8 @@ class DatabaseHandler:
             today = date.today().strftime('%Y-%m-%d')
             cursor.execute("""
                 SELECT * FROM diem_danh 
-                WHERE ten_sinh_vien = %s AND DATE(ngay_gio_diem_danh) = %s
-            """, (student['ten_sinh_vien'], today))
+                WHERE id_sinh_vien = %s AND DATE(ngay_gio_diem_danh) = %s
+            """, (student['id'], today))
             
             existing_attendance = cursor.fetchone()
             if existing_attendance:
@@ -95,9 +95,9 @@ class DatabaseHandler:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             print(f"Thêm điểm danh cho sinh viên {student['ten_sinh_vien']} vào lúc {now}")
             cursor.execute("""
-                INSERT INTO diem_danh (ten_sinh_vien, ngay_gio_diem_danh)
+                INSERT INTO diem_danh (id_sinh_vien, ngay_gio_diem_danh)
                 VALUES (%s, %s)
-            """, (student['ten_sinh_vien'], now))
+            """, (student['id'], now))
             
             self.connection.commit()
             
@@ -111,7 +111,7 @@ class DatabaseHandler:
             return True, success_message
                 
         except Error as e:
-            print(f"Lỗi khi điểm danh: {e}")
+            print(f"Lỗi khi điểm danh: {e.with_traceback()}")
             return False, f"Lỗi khi điểm danh: {e}"
         finally:
             if cursor:

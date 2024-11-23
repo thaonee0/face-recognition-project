@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 from db_handler import DatabaseHandler
 
-class InputInfoDialog:
+class InputInfoDialog(simpledialog.Dialog):
     def __init__(self, parent, run_capture_script):
         self.parent = parent
         self.run_capture_script = run_capture_script
@@ -38,7 +38,7 @@ class InputInfoDialog:
         if mssv and name and class_name and faculty:
             folder_name = f"{name}-{mssv}"
             # Tạo đường dẫn ảnh đại diện
-            avatar_path = f"D:\\FACENET\\face_recognition_project\\data\\raw\\train\\{folder_name}\\{folder_name}_1.jpg"
+            avatar_path = r"D:\FACENET\face-recognition-project\data\raw\{folder_name}\{folder_name}_1.jpg"
             
             # Lưu vào database
             db = DatabaseHandler()
