@@ -66,9 +66,8 @@ def recognize_faces_from_camera(callback):
                 pred_prob = svm_model.predict_proba(embedding_normalized)
                 prob = np.max(pred_prob)
 
-                if prob > 0.7:
-                    # Gửi thông tin về GUI khi nhận diện thành công
-                    callback(pred_name, prob * 100)  # Gửi cả tên và phần trăm xác suất
+                # Gửi kết quả tới callback
+                callback(pred_name, prob * 100)
 
                 # Hiển thị khung và nhãn
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -83,7 +82,9 @@ def recognize_faces_from_camera(callback):
 
 # Hàm gọi khi nhận diện thành công
 def start_recognition(callback):
-    threading.Thread(target=recognize_faces_from_camera, args=(callback,)).start()
-
+    thread = threading.Thread(target=recognize_faces_from_camera, args=(callback,))
+    thread.daemon = True  # Đảm bảo thread kết thúc khi chương trình chính dừng
+    thread.start()
+    
 if __name__ == "__main__":
     start_recognition(lambda name, prob: print(f"Người nhận diện: {name}, Xác suất: {prob}%"))

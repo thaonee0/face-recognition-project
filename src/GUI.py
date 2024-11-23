@@ -5,6 +5,7 @@ from PIL import Image, ImageTk
 import os
 import sys
 import subprocess
+import threading
 
 # Thêm đường dẫn gốc của project vào PYTHONPATH
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,12 +17,16 @@ if project_root not in sys.path:
 from input_info_dialog import InputInfoDialog
 from capture_and_save_face import capture_and_save_face
 from realtime_recognition import start_recognition
+from db_handler import DatabaseHandler  
 
 class FaceCapturingApp:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("Xử lý ảnh - Nhóm 8")
         self.window.geometry("1000x800")
+
+        # Khởi tạo DatabaseHandler
+        self.db = DatabaseHandler()
         
         self.camera_on = False
         self.current_person = None
@@ -167,7 +172,6 @@ class FaceCapturingApp:
             print(f"Lỗi khi chạy file: {e}")
             messagebox.showerror("Lỗi", f"Quá trình huấn luyện thất bại.\nChi tiết lỗi: {e}")
 
-
     def toggle_recognition(self):
         if not self.camera_on:
             messagebox.showerror("Lỗi", "Vui lòng bật camera trước!")
@@ -176,15 +180,22 @@ class FaceCapturingApp:
         """Bắt đầu nhận diện khuôn mặt."""
         def on_recognition(name, prob):
             """Xử lý kết quả nhận diện khuôn mặt."""
-            self.recognized_name = name
-            self.recognized_prob = prob
-            if prob > 70:
-                self.attendance_button.config(state="normal")  # Kích hoạt button điểm danh
-            else:
-                self.attendance_button.config(state="disabled")
+            self.window.after(0, self.update_recognition_result, name, prob)
 
-        # Gọi hàm nhận diện từ file realtime_recognition.py
-        start_recognition(on_recognition)
+        def recognition_thread():
+            start_recognition(on_recognition)
+
+        # Chạy nhận diện trong một thread riêng biệt
+        threading.Thread(target=recognition_thread, daemon=True).start()
+
+    def update_recognition_result(self, name, prob):
+        """Cập nhật kết quả nhận diện trên GUI"""
+        self.recognized_name = name
+        self.recognized_prob = prob
+        if prob > 70:
+            self.attendance_button.config(state="normal")  # Kích hoạt button điểm danh
+        else:
+            self.attendance_button.config(state="disabled")
 
     def toggle_attendance(self):
         if self.recognized_name:
@@ -195,10 +206,14 @@ class FaceCapturingApp:
 
     def confirm_attend(self):
         if self.recognized_name:
+            success, message = self.db.check_attendance(self.recognized_name)
             # Ghi nhận vào cơ sở dữ liệu hoặc lưu lại thông tin người điểm danh
-            print(f"{self.recognized_name} đã được điểm danh.")
-            # Thực hiện lưu vào cơ sở dữ liệu ở đây
-            messagebox.showinfo("Thông báo", f"{self.recognized_name} đã điểm danh thành công")
+            if success:
+                messagebox.showinfo("Thông báo", message)
+            else:
+                messagebox.showerror("Thông báo", message)
+        else:
+            messagebox.showerror("Lỗi", "Chưa nhận diện được khuôn mặt!")
     
     def run(self):
         self.window.mainloop()
@@ -206,6 +221,8 @@ class FaceCapturingApp:
     def __del__(self):
         if self.camera_on:
             self.cap.release()
+        # Đóng kết nối database
+        self.db.close()
 
 if __name__ == "__main__":
     app = FaceCapturingApp()
