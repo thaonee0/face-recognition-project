@@ -184,13 +184,6 @@ class FaceCapturingApp:
         def on_recognition(name, prob):
             """Xử lý kết quả nhận diện khuôn mặt."""
             self.window.after(0, self.update_recognition_result, name, prob)
-            # Kiểm tra nếu tên có trong student_data hoặc lấy MSSV từ cơ sở dữ liệu
-            mssv = self.db.get_mssv_from_name(name)  # Lấy MSSV từ cơ sở dữ liệu
-            if mssv:
-                recognized_info = f"{name}-{mssv}"
-            else:
-                recognized_info = name  # Nếu không tìm thấy MSSV thì chỉ dùng tên
-            self.window.after(0, self.update_recognition_result, recognized_info, prob)
         
         def recognition_thread():
             start_recognition(on_recognition)

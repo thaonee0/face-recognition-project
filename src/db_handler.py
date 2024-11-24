@@ -46,8 +46,8 @@ class DatabaseHandler:
             if cursor:
                 cursor.close()
 
-    def get_mssv_from_name(self, name):
-        """Truy vấn MSSV từ cơ sở dữ liệu dựa trên tên sinh viên."""
+    """
+    def get_sv_from_name(self, name):
         cursor = self.connection.cursor(dictionary=True)
         cursor.execute("SELECT ten_sinh_vien FROM sinhvien WHERE ten_sinh_vien = %s", (name,))
         student = cursor.fetchone()
@@ -57,6 +57,7 @@ class DatabaseHandler:
             return student['ten_sinh_vien']
         else:
             return None 
+    """
 
     def check_attendance(self, recognized_name):
         """Kiểm tra và thực hiện điểm danh."""
