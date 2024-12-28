@@ -22,7 +22,7 @@ from db_handler import DatabaseHandler
 class FaceCapturingApp:
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("Xử lý ảnh - Nhóm 8")
+        self.window.title("Face Recognition - Nhóm 7")
         self.window.geometry("1000x800")
 
         # Khởi tạo DatabaseHandler
@@ -41,7 +41,7 @@ class FaceCapturingApp:
         self.setup_gui()
 
     def setup_gui(self):
-        title_label = Label(self.window, text="Xử Lý Ảnh - Nhóm 8", font=("Helvetica", 34))
+        title_label = Label(self.window, text="Face Recognition - Nhóm 7", font=("Helvetica", 34))
         title_label.pack(pady=(60, 5))
 
         self.left_frame = Frame(self.window, width=800, height=580)
@@ -58,7 +58,7 @@ class FaceCapturingApp:
         self.toggle_button = Button(right_frame, text="Bật Camera", 
                                     command=self.toggle_camera, 
                                     height=2, width=20, 
-                                    bg="#4CAF50", fg="white",
+                                    bg="#EECAD5", fg="white",
                                     font=("Helvetica", 14, "bold"))
         self.toggle_button.pack(pady=10)
 
@@ -66,15 +66,15 @@ class FaceCapturingApp:
         self.info_button = Button(right_frame, text="Nhập Thông Tin", 
                                   command=self.input_info, 
                                   height=2, width=20, 
-                                  bg="#FFC107", fg="white",
+                                  bg="#87A2FF", fg="white",
                                   font=("Helvetica", 14, "bold"))
         self.info_button.pack(pady=10)
 
         #Training Button
-        self.training_button = Button(right_frame, text="Training", 
+        self.training_button = Button(right_frame, text="Huấn luyện", 
                               command=self.run_training_pipeline, 
                               height=2, width=20, 
-                              bg="#FFC107", fg="white",
+                              bg="#705C53", fg="white",
                               font=("Helvetica", 14, "bold"))
         self.training_button.pack(pady=10)
 
@@ -82,7 +82,7 @@ class FaceCapturingApp:
         self.recognition_button = Button(right_frame, text="Nhận diện", 
                                          command=self.toggle_recognition, 
                                          height=2, width=20,
-                                         bg="#9C27B0", fg="white",
+                                         bg="#7E60BF", fg="white",
                                          font=("Helvetica", 14, "bold"))
         self.recognition_button.pack(pady=10)
 
@@ -90,7 +90,7 @@ class FaceCapturingApp:
         self.attendance_button = Button(right_frame, text="Điểm danh", 
                                         command=self.toggle_attendance,
                                          height=2, width=20,
-                                         bg="#9C27B0", fg="white",
+                                         bg="#347928", fg="white",
                                          font=("Helvetica", 14, "bold"))
         self.attendance_button.pack(pady=10)
 
@@ -195,7 +195,7 @@ class FaceCapturingApp:
         """Cập nhật kết quả nhận diện trên GUI"""
         self.recognized_name = name
         self.recognized_prob = prob
-        if prob > 60:
+        if prob > 70:
             self.attendance_button.config(state="normal")  # Kích hoạt button điểm danh
         else:
             self.attendance_button.config(state="disabled")
@@ -210,7 +210,7 @@ class FaceCapturingApp:
                 messagebox.showerror("Lỗi", "Tên sinh viên hoặc MSSV không hợp lệ!")
                 return
             
-            messagebox.showinfo("Điểm danh thành công", f"{full_name_with_mssv}")
+            messagebox.showinfo("Điểm danh", f"{full_name_with_mssv}")
             success, message = self.db.check_attendance(full_name_with_mssv)
             if success:
                 messagebox.showinfo("Thông báo", message)
